@@ -7,11 +7,12 @@ SIMP_INC = -I../tactile/deps/glm
 INCLUDES = $(SIMP_INC) \
 	-I../tactile/deps/gl3w/build/include \
 	-I../tactile/deps/glfw-3.2.1/include \
+	-I../src/
 
 CC = gcc 
 CPP = g++
 CFLAGS = $(INCLUDES) -I../tactile/src -g -Wall 
-CPPFLAGS = $(INCLUDES) -I../tactile/src -g -Wall -std=c++11 
+CPPFLAGS = $(INCLUDES) -I../tactile/src -I../src/ -g -Wall -std=c++11 
 SIMP_CPPFLAGS = $(SIMP_INC) -I../tactile/src -g -Wall -std=c++11 
 
 ## This is probably the only platform dependency.  Edit as necessary.
@@ -20,7 +21,6 @@ LIBS = -L../tactile/deps/glfw-3.2.1/build/src \
 
 main: main.o colloid.o tiling.o motif.o
 	$(CPP) -o $@ $^ 
-
 
 ## gl3w is even simpler
 gl3w.o: ../tactile/deps/gl3w/build/src/gl3w.c
@@ -32,14 +32,14 @@ gl3w.o: ../tactile/deps/gl3w/build/src/gl3w.c
 tiling.o: ../tactile/src/tiling.cpp ../tactile/src/tiling_arraydecl.inc
 	$(CPP) $(SIMP_CPPFLAGS) ../tactile/src/tiling.cpp -c -o $@
 
-motif.o: motif.cpp
-	$(CPP) $(CPPFLAGS) motif.cpp -c -o $@
+motif.o: ../src/motif.cpp
+	$(CPP) $(CPPFLAGS) ../src/motif.cpp -c -o $@
 
-colloid.o: colloid.cpp ../tactile/src/tiling.cpp
-	$(CPP) $(CPPFLAGS) colloid.cpp -c -o $@
+colloid.o: ../src/colloid.cpp ../tactile/src/tiling.cpp
+	$(CPP) $(CPPFLAGS) ../src/colloid.cpp -c -o $@
 
 main.o: main.cpp 
-	$(CPP) $(SIMP_CPPFLAGS) $^ -c -o $@
+	$(CPP) $(CPPFLAGS) $^ -c -o $@
 
 clean:
 	rm -f *.o main

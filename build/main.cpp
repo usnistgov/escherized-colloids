@@ -20,7 +20,7 @@
 
 #include "tiling.hpp"
 #include "motif.hpp"
-//#include "colloid.hpp"
+#include "colloid.hpp"
 
 using namespace std;
 using namespace csk;
@@ -42,7 +42,11 @@ int main( int argc, char **argv )
 	m.loadXYZ("test.xyz");
 	const vector<double> params = {0, 0, 3.14159/2.0};
 	m.setParameters(params);
-	m.dumpXYZ("dummy.xyz");
+
+	Colloid c;
+	c.setMotif(m);
+	Motif n = c.getMotif();
+	n.dumpXYZ("dummy.xyz");
 
 	/*
 	if ( argc < 3 ) {

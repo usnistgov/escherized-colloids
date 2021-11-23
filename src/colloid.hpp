@@ -36,9 +36,11 @@ public:
 
         // Assign the motif
         void setMotif( Motif m );
+	const Motif getMotif() { return m_; }
 
         // Assign the tile
-        void setTile ( IsohedralTiling t );
+        void setTile( IsohedralTiling t );
+	const IsohedralTiling getTile() { return tile_; }
 
         bool isMotifInside( const int N ); // Check if the motif is inside
         double tileArea(); // Compute the area of the tile
