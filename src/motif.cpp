@@ -1,5 +1,9 @@
-/*!
- * author: Nathan A. Mahynski
+/**
+ * A motif for the colloid is what is "inside" the tile.
+ * 
+ * This file contains functions to build and manipulate motifs.
+ * 
+ * @author Nathan A. Mahynski
  */
 
 #include "motif.hpp"
@@ -8,6 +12,17 @@ Motif::Motif() {
 }
 
 Motif::~Motif() {
+}
+
+Motif::Motif(Motif& other) {
+	copy(other);
+}
+
+void Motif::copy(Motif& other) {
+	vector<double> p = other.getParameters();
+	setCoords(other.getCoords(), p[2]);
+	setTypes(other.getTypes());
+	//setParameters(other.getParameters()); // Handled by the above routines
 }
 
 void Motif::loadXYZ( const string filename ) {
@@ -42,7 +57,7 @@ void Motif::loadXYZ( const string filename ) {
 		throw(customException("line error in xyz file"));	
 	}
 
-	setCoords(coords);
+	setCoords(coords, 0);
 	setTypes(types);
 
 	return;      
@@ -73,14 +88,18 @@ void Motif::dumpXYZ( const string filename ) {
 	return;
 }
 
-void Motif::setCoords( const vector<vector<double>> &coords ) {
+void Motif::setCoords( const vector<vector<double>> &coords, double theta=0.0 ) {
 	coords_.clear();
 	for( size_t i = 0; i < coords.size(); ++i ) {
 		coords_.push_back(coords[i]);
 	}
 
-	// Initial configuration defines theta = 0 orientiation
-	theta_ = 0;
+	// Compute COM so it is initialized
+	computeCOM_();
+
+	// Initial configuration defines initial orientiation
+	theta_ = theta;
+
 	return;
 }
         
@@ -89,6 +108,7 @@ void Motif::setTypes( const vector<string> &types ) {
 	for ( size_t i = 0; i < types.size(); ++i ) {
 		types_.push_back(types[i]);	
 	}
+
 	return;
 }
 
@@ -97,21 +117,25 @@ void Motif::setParameters( const vector<double> &params ) {
 		throw(customException("cannot assign motif parameters because it has not been assigned"));
 	}
 
-	computeCOM_();
+	//computeCOM_(); 
 	const vector<double> shift = { -com_[0], -com_[1] }, new_com = { params[0], params[1]};
 
 	// Shift to zero and rotate to theta
-	translate_(shift);
-	rotate_(params[2]);
-	translate_(new_com);
+	translate(shift);
+	rotate(params[2]);
+	translate(new_com);
 
-	// Recompute COM
-	computeCOM_();
+	// Recompute COM - should be same as params 
+	//computeCOM_();
+	com_[0] = params[0];
+	com_[1] = params[1];
 }
 
 const vector<double> Motif::getParameters() { 
 	// Return COM and angle
-	const vector<double> params = { com_[0], com_[1], theta_ };
+	computeCOM_();
+	vector<double> params = { com_[0], com_[1], theta_ };
+
 	return params;
 }
 
@@ -128,7 +152,7 @@ void Motif::computeCOM_() {
 	com_ = com;
 }
 
-void Motif::rotate_( const double theta ) {
+void Motif::rotate( const double theta ) {
 	// Assume theta (cc) is absolute relative to initialization
 	const double dtheta = theta - theta_;
 	double x = 0, y = 0;
@@ -140,10 +164,12 @@ void Motif::rotate_( const double theta ) {
 		coords_[i][1] = y;
 	}
 
+	theta_ = theta;
+
 	return;
 }
  
-void Motif::translate_( const vector<double> &dx ) {
+void Motif::translate( const vector<double> &dx ) {
 	// Translate coordinates
 	for( size_t i = 0; i < coords_.size(); ++i ) {
 		for( size_t j = 0; j < 2; ++j ) {

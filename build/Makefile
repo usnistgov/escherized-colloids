@@ -7,13 +7,13 @@ SIMP_INC = -I../tactile/deps/glm
 INCLUDES = $(SIMP_INC) \
 	-I../tactile/deps/gl3w/build/include \
 	-I../tactile/deps/glfw-3.2.1/include \
-	-I../src/
+	-I../src
 
 CC = gcc 
 CPP = g++
 CFLAGS = $(INCLUDES) -I../tactile/src -g -Wall 
 CPPFLAGS = $(INCLUDES) -I../tactile/src -I../src/ -g -Wall -std=c++11 
-SIMP_CPPFLAGS = $(SIMP_INC) -I../tactile/src -g -Wall -std=c++11 
+SIMP_CPPFLAGS = $(SIMP_INC) -I../tactile/src -g -Wall -std=c++11
 
 ## This is probably the only platform dependency.  Edit as necessary.
 LIBS = -L../tactile/deps/glfw-3.2.1/build/src \

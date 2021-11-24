@@ -1,78 +1,193 @@
-/*!
- * author: Nathan A. Mahynski
+/**
+ * A colloid is composed of an isohedral tile boundary and internal motif.
+ * 
+ * This file contains functions to build and manipulate colloids. Tile 
+ * information is inherited from the Tactile library, while a Motif
+ * class is described in motif.hpp. This should be self-contained so 
+ * that, for example, external optimizers can manipulate the colloid's
+ * parameters controlling its shape, etc. and compute properties from
+ * that.
+ * 
+ * @author Nathan A. Mahynski
  */
 
 #include "colloid.hpp"
 
-bool pip(const vector<dvec2> &polygon, const vector<double>& point) {
-	// Based on https://stackoverflow.com/questions/11716268/point-in-polygon-algorithm
+bool pip( const vector<vector<double>> &polygon, const vector<double>& point ) {
+	/**
+	 * Check if a point is inside a polygon.
+	 * 
+	 * In particular, this code is based on the discussion found at
+	 * https://stackoverflow.com/questions/11716268/point-in-polygon-algorithm.
+	 * 
+	 * @param polygon Matrix of (x,y) coordinates of polygon's vertices.
+	 * @param point Coordinate to check.
+	 *
+	 * @returns Boolean indicating if `point` is inside `polygon`.
+	 */
+
 	bool c = false;
-	for (size_t i=0, j=polygon.size()-1; i < polygon.size(); j=i++) {
+	for( size_t i=0, j=polygon.size()-1; i < polygon.size(); j=i++ ) {
 		if( 
-			((polygon[i].y >= point[1]) != (polygon[j].y >= point[1])) &&
-		  	(point[0] <= (polygon[j].x - polygon[i].x)*(point[1] - polygon[i].y)/(polygon[j].y-polygon[i].y) + polygon[i].x)
+			((polygon[i][1] >= point[1]) != (polygon[j][1] >= point[1])) &&
+		  	(point[0] <= (polygon[j][0] - polygon[i][0])*(point[1] - polygon[i][1])/(polygon[j][1]-polygon[i][1]) + polygon[i][0])
 		) {
 			c = !c;
 		}
 	}
+
 	return c;
 }
 
-dvec2 bezier(dvec2 p0, dvec2 p1, dvec2 p2, dvec2 p3, double u) {
-	/*!
-	 * Compute parameterized location along Bezier curve.
+dvec2 bezier( dvec2 p0, dvec2 p1, dvec2 p2, dvec2 p3, double u ) {
+	/**
+	 * Compute parameterized location along a Bezier curve.
+ 	 * 
+	 * In particular, this code is based on the discussion found at 
+	 * https://www.geeksforgeeks.org/cubic-bezier-curve-implementation-in-c/
+	 *
+	 * @param p0 First Bezier control point.
+	 * @param p1 Second Bezier control point.
+	 * @param p2 Third Bezier control point.
+	 * @param p3 Fourth Bezier control point.
+	 * @param u Position along the curve; 0 is the start of the curve, 1 is the end.
 	 */
 	
-	// From https://www.geeksforgeeks.org/cubic-bezier-curve-implementation-in-c/
 	dvec2 coord;	
-	coord.x = pow(1.0-u, 3)*p0.x + 3.0*u*pow(1.0-u, 2)*p1.x + 3.0*(1.0-u)*pow(u, 2)*p2.x + pow(u, 3)*p3.x;
-	coord.y = pow(1.0-u, 3)*p0.y + 3.0*u*pow(1.0-u, 2)*p1.y + 3.0*(1.0-u)*pow(u, 2)*p2.y + pow(u, 3)*p3.y;
+	coord.x = pow( 1.0-u, 3 )*p0.x + 3.0*u*pow( 1.0-u, 2 )*p1.x + 3.0*( 1.0-u )*pow( u, 2 )*p2.x + pow( u, 3 )*p3.x;
+	coord.y = pow( 1.0-u, 3 )*p0.y + 3.0*u*pow( 1.0-u, 2 )*p1.y + 3.0*( 1.0-u )*pow( u, 2 )*p2.y + pow( u, 3 )*p3.y;
 
 	return coord;
 }
 
-Colloid::Colloid(): tile_(IsohedralTiling(0)) {
+Colloid::Colloid(): tile_( IsohedralTiling( 1 ) ) {
+	/**
+	 * Instantiate a new colloid.
+	 * 
+	 * The Tactile library requires an isohedral tile number be given at instantiation
+	 * so the colloid is initialized, by default, to have tile IH1. This can be
+	 * changed later. Also by default, sphere_deform_ = 0.25, edge_du_ = 0.1.
+	 * 
+	 * You should later set relevant parameters and call `init()` to initialize the 
+	 * colloid.
+	 */
+
 	tile_assigned_ = false;
 	motif_assigned_ = false;
-	sphere_deform_ = 0.25; // The amount a sphere "deforms" the edge
-	edge_du_ = 0.1; // Parameterized (Bezier) gap between edge points
+	built_ = false;
+	tile_scale_ = 1.0;
+	edge_u0_ = 0.0;
+	sphere_deform_ = 0.25; 
+	edge_du_ = 0.1; 
+	
+}
+
+Colloid::Colloid( Motif m, IsohedralTiling t, double tile_scale, double tile_u0 ): tile_( IsohedralTiling( 1 ) ) {
+	/**
+	 * Instantiate a new colloid if all parameters are known (preferred method).
+	 * 
+	 * The Tactile library requires an isohedral tile number be given at instantiation
+	 * so the colloid is initialized, by default, to have tile IH1. This can be
+	 * changed later. Also by default, sphere_deform_ = 0.25, edge_du_ = 0.1.
+	 * The colloid is initialized with these paramter values and should be ready to
+	 * use when instantiated this way.
+	 */
+
+	tile_assigned_ = false;
+	motif_assigned_ = false;
+	built_ = false;
+	tile_scale_ = tile_scale;
+	edge_u0_ = tile_u0;
+	sphere_deform_ = 0.25; 
+	edge_du_ = 0.1;
+
+	setMotif(m);
+	setTile(t);
+
+	init();
 }
 
 Colloid::~Colloid() {
 }
 
+vector<double> Colloid::boundaryCOM() {
+	/**
+	 * Compute the center of mass (COM) of the boundary points.
+	 * 
+	 * The boundary points include the functional points and the 
+	 * "stop codons".  No control points or other parts of the
+	 * edges used by Tactile are used here.
+	 * 
+	 * @returns com (x,y) coordinates of the COM.
+	 * 
+	 * @throws customException if boundary coordinates have not been initialized.
+	 */
+
+	if( !boundary_coords_.empty() ) {
+		vector<double> com = { 0.0, 0.0 };
+		const size_t N = boundary_coords_.size();
+		for( size_t i = 0; i < N; ++i ) {
+			for( size_t j = 0; j < 2; ++j ) {
+				com[j] += boundary_coords_[ i ][ j ]/N;
+			}
+			
+		}
+
+		return com;
+	} else {
+		throw( customException( "boundary has not been defined yet" ) );
+	}
+}
+
 void Colloid::setParameters( const vector<double> &params ) {
-	// This will have to be more complex - when updating, make sure the tile and motif are
-	// consistent with each other (same COM, for example).
+	/**
+	 * Assign all parameters defining the colloid.
+	 * 
+	 * The parameters are an unrolled (double) vector useful for optimization schemes.
+	 * They are: [motif com_x, motif com_y, motif_theta, {v0, v1, etc. for tile}, 
+	 * edge_u0, tile_scale].
+	 * 
+	 * @param params Parameter vector described above.
+	 * 
+	 * @throws customException if tile or motif has not been assigned yet.
+	 */
 
-
-	if (!motif_assigned_ || !tile_assigned_) {
-		// Make sure the tile and motif have been assigned first.
-		throw customException("must assign colloid and tile before parameters");
+	if( !motif_assigned_ || !tile_assigned_ ) {
+		throw customException( "must assign colloid and tile before parameters" );
 	}
 
-	// params = com_x, com_y, theta of the motif
 	const vector<double> motif_params = { params[0], params[1], params[2] };
 	m_.setParameters( motif_params );
 
-	// next params are for the IH tile
-	double tile_params[tile_.numParameters()];
+	double tile_params[ tile_.numParameters() ];
 	for ( int i = 3; i < tile_.numParameters()+3; ++i ) {
-		tile_params[i-3] = params[i];
+		tile_params[ i-3 ] = params[ i ];
 	}
 	tile_.setParameters( tile_params );
 
-	// finally, params tell us where to start placing points on the edge curves
-	edge_u0_ = params[3+tile_.numParameters()];
+	edge_u0_ = params[ 3+tile_.numParameters() ];
 
-	// getParams updates the parameters internally
+	tile_scale_ = params[ 3+tile_.numParameters()+1 ];
+
+	// This updates the params_ vector internally
 	getParameters();
 }
 
 const vector<double> Colloid::getParameters() {
-	if (!motif_assigned_ || !tile_assigned_) {
-		// Make sure the tile and motif have been assigned first.
-		throw customException("must assign colloid and tile before parameters");
+	/**
+	 * Retrieve all parameters defining the colloid.
+	 * 
+	 * The parameters are an unrolled (double) vector useful for optimization schemes.
+	 * They are: [motif com_x, motif com_y, motif_theta, {v0, v1, etc. for tile}, 
+	 * edge_u0, tile_scale].
+	 * 
+	 * @returns Parameter vector.
+	 *
+	 * @throws customException if tile or motif has not been assigned yet.
+	 */
+
+	if( !motif_assigned_ || !tile_assigned_ ) {
+		throw customException( "must assign colloid and tile before parameters" );
 	}
 
 	params_.clear();
@@ -80,48 +195,104 @@ const vector<double> Colloid::getParameters() {
 	vector<double> dummy;
 	dummy = m_.getParameters();
 	for ( size_t i=0; i < dummy.size(); ++i ) {
-		params_.push_back(dummy[i]);
+		params_.push_back( dummy[ i ] );
 	}
 	
-	double tile_dummy[tile_.numParameters()];
-	tile_.getParameters(tile_dummy);
+	double tile_dummy[ tile_.numParameters() ];
+	tile_.getParameters( tile_dummy );
 	for ( size_t i=0; i < tile_.numParameters(); ++i ) {
-		params_.push_back(tile_dummy[i]);
+		params_.push_back( tile_dummy[ i ] );
 	}
 
-	params_.push_back(edge_u0_);
+	params_.push_back( edge_u0_ );
+	params_.push_back( tile_scale_ );
 
 	return params_;
 }
 
 void Colloid::setMotif( Motif m ) {
+	/**
+	 * Assign the motif by copying an existing one.
+	 * 
+	 * The motif's initial orientation should be consistent with any symmetry
+	 * constraints.  It's initial orientation is always used as a reference.
+	 * 
+	 * @param m Motif for the colloid to use.
+	 */
+
 	motif_assigned_ = true;
-	m_ = m; // Create a copy
+	m_.copy( m ); // Create a copy - motif may not have been initialized yet
+}
+
+const Motif Colloid::getMotif() { 
+	/**
+	 * Retieve the colloid's motif.
+	 * 
+	 * @returns The colloid's motif.
+ 	 *	
+	 * @throws customException if the motif has not been assigned yet.
+	 */
+
+	if ( !motif_assigned_ ) {
+		throw( customException( "motif has not been assigned yet" ) );
+	} else {
+		return m_;
+	}
 }
 
 void Colloid::setTile( IsohedralTiling t ) {
+	/**
+	 * Assign the tile.
+	 * 
+	 * @param t Isohedral tile from Tactile library.
+	 */
+
 	tile_assigned_ = true;
-	tile_ = t; // Create a copy
+	tile_ = t; // Create a copy - already initialized at instantiation
 }
 
-bool Colloid::isMotifInside(const int N=20) // Put this many points on each edge to create a polygonal approximation of the tile's (smooth) boundary
-{
-	const double du = (1.0 - 0.0)/N;
-	vector<vector<dvec2>> p = perimeter_(0.0, du, N-1);
-	vector<dvec2> polygon;
+const IsohedralTiling Colloid::getTile() { 
+	/**
+	 * Retieve the colloid's tile.
+	 * 
+	 * @returns The colloid's tile.
+ 	 *	
+	 * @throws customException if the tile has not been assigned yet.
+	 */
 
-	// Unroll points from each tile edge into single polygon vector
-	polygon.clear();
-	for( size_t i=0; i < p.size(); ++i ) {
-		for( size_t j=0; j < p[i].size(); ++j ) {
-			polygon.push_back(p[i][j]);
-		}
+	if ( !tile_assigned_ ) {
+		throw( customException( "tile has not been assigned yet" ) );
+	} else {
+		return tile_;
 	}
+}
+
+bool Colloid::isMotifInside( const int N=20 )
+{
+	/**
+	 * Test if the motif is inside the tile boundary.
+	 * 
+	 * The tile is discretized into points and treated as a polygon.
+	 * All points on the motif are then tested if they are inside that
+	 * polygon; if they all are, then the motif is considered to be 
+	 * inside the tile.
+	 * 
+	 * @param N Number of points to discretize each edge into.
+	 * 
+	 * @return Boolean if the motif is completely inside the tile.
+	 */
+
+	const double du = ( 1.0 - 0.0 )/N;
+	vector<int> boundary_ids;
+	vector<vector<double>> polygon;
+	vector<vector<double>> tile_control_points;
+
+	perimeter_( 0.0, du, N-1, tile_scale_, &boundary_ids, &polygon, &tile_control_points );
 
 	// Check each point in motif 
 	const vector<vector<double>> c = m_.getCoords();
 	for( size_t i=0; i < c.size(); ++i ) {
-		if (!pip(polygon, c[i])) {
+		if ( !pip( polygon, c[ i ] ) ) {
 			return false;
 		}
 	}
@@ -131,25 +302,66 @@ bool Colloid::isMotifInside(const int N=20) // Put this many points on each edge
 
 double Colloid::tileArea()
 {
-	// Based on https://www.wikihow.com/Calculate-the-Area-of-a-Polygon
-	// The corner control points are the vertices of the generating polygon.
+	/**
+	 * Compute the area of the tile (colloid).
+	 *
+	 * Since all edge deformations should "cancel out" by symmetry, we use the 
+ 	 * control points of the edges to define the polygonal patch that defines
+	 * the area of the colloid. In particular, this code is based on the discussion 
+	 * at https://www.wikihow.com/Calculate-the-Area-of-a-Polygon.
+	 *  
+	 * @returns Area of the tile.
+	 */
+
 	const int n = tile_control_points_.size();
 	double sum1 = 0.0, sum2 = 0.0;
-	for( int i=0; i < n; ++i ) {
+	for( int i = 0; i < n; ++i ) {
 		if ( i == n-1 ) {
-			sum1 += tile_control_points_[i][0]*tile_control_points_[0][1];
-			sum2 += tile_control_points_[i][1]*tile_control_points_[0][0];
+			sum1 += tile_control_points_[ i ][ 0 ]*tile_control_points_[ 0 ][ 1 ];
+			sum2 += tile_control_points_[ i ][ 1 ]*tile_control_points_[ 0 ][ 0 ];
 		} else {
-			sum1 += tile_control_points_[i][0]*tile_control_points_[i+1][1];
-			sum2 += tile_control_points_[i][1]*tile_control_points_[i+1][0];
+			sum1 += tile_control_points_[ i ][ 0 ]*tile_control_points_[ i+1 ][ 1 ];
+			sum2 += tile_control_points_[ i ][ 1 ]*tile_control_points_[ i+1 ][ 0 ];
 		}
 	}
-	return (sum1 - sum2)/2.;
+	return ( sum1 - sum2 )/2.;
 }
 
 void Colloid::buildBoundary_()
 {
-	vector<vector<dvec2>> edges = perimeter_(edge_u0_, edge_du_, 1+4+1);
+	/**
+	 * Build the colloid's boundary points.
+	 * 
+	 * The boundary is made using the "4+1" rule. so there are 4 interacting points and 1
+	 * "stop codon" on each edge.	
+	 */
+	perimeter_( edge_u0_, edge_du_, 1+4+1, tile_scale_, &boundary_ids_, &boundary_coords_, &tile_control_points_ );
+}
+
+void Colloid::perimeter_( double u0, double du, int n, double scale, 
+	vector<int>* boundary_ids, 
+	vector<vector<double>>* boundary_coords, 
+	vector<vector<double>>* tile_control_points ) 
+{
+	/**
+	 * Compute points along the tile's perimeter.
+	 * 
+	 * A Bezier curve defines each edge on the tile, following the Tactile library.	
+	 * The curve's control points are adjusted to be consistent with symmetry.
+	 * Each edge assumed to be "impacted" by a sphere to create a curvature of a
+	 * single sign along its edge. The identities of each symmetrically unique
+	 * point along the bounday are identified in ascending order, without gap.
+	 * 0 is used for stop codons, positive integers for interacting points.
+	 * 
+	 * @param[in] u0 Starting point for boundary points along Bezier curve. Should be in (0,1).
+	 * @param[in] du Gap along Bezier curve between boundary points. Should be < 1.
+	 * @param[in] n Number of points to place along each edge.
+	 * @param[in] scale The default Tactile tile is isotropically scaled by this factor.
+	 * @param[out] boundary_ids Chemical identities (integers > 0) of boundary points.
+	 * @param[out] boundary_coords Coordinates of points on tile's boundary.
+	 * @param[out] tile_control_points Control points on Bezier curves defining edges.
+	 */
+	vector<vector<dvec2>> edges = perimeter_edges_( u0, du, n, scale );
 
 	// Use a vector to hold the control points of the final tile outline.
 	vector<dvec2> shape;
@@ -172,9 +384,9 @@ void Colloid::buildBoundary_()
 			0}; // 0 for stop codons
 		
 		// Interacting points on U and S edges are centro-symmetrically labelled
-		if (i->getShape() == 1 || i->getShape() == 2) {
-			pattern[3] = pattern[2];
-			pattern[4] = pattern[1];
+		if( i->getShape() == 1 || i->getShape() == 2 ) {
+			pattern[ 3 ] = pattern[ 2 ];
+			pattern[ 4 ] = pattern[ 1 ];
 		}
 
 		// Get the relevant edge shape created above using i->getId().
@@ -188,20 +400,20 @@ void Colloid::buildBoundary_()
 		// of the path backwards.
 		if( i->isReversed() ) {
 			for( size_t idx = 1; idx < ed.size(); ++idx ) {
-				shape.push_back( T * dvec3( ed[ed.size()-1-idx], 1.0 ) );
+				shape.push_back( T * dvec3( ed[ ed.size()-1-idx ], 1.0*scale ) );
                         }
 			for( size_t idx = 0; idx < pattern.size(); ++idx ) {
-                                identity.push_back( pattern[pattern.size()-1-idx] );
+                                identity.push_back( pattern[ pattern.size()-1-idx ] );
                         }
 			identity.push_back(-1); // -1 for control points
 		} else {
 			for( size_t idx = 1; idx < ed.size(); ++idx ) {
-				shape.push_back( T * dvec3( ed[idx], 1.0 ) );
+				shape.push_back( T * dvec3( ed[ idx ], 1.0*scale ) );
 			}
 			for( size_t idx = 0; idx < pattern.size(); ++idx ) {
-                                identity.push_back( pattern[idx] );
+                                identity.push_back( pattern[ idx ] );
                         }
-			identity.push_back(-1); // -1 for control points
+			identity.push_back( -1 ); // -1 for control points
 		}
 
 		total_edges += 1;
@@ -210,46 +422,143 @@ void Colloid::buildBoundary_()
 	// Count any gaps in the identities from S and U edges
 	map<int, int> adjust;
 	int ctr = 0;
-	for (int i = 0; i <= *max_element(identity.begin(), identity.end()); ++i) {
-		if (find(identity.begin(), identity.end(), i) == identity.end()) {
+	for( int i = 0; i <= *max_element( identity.begin(), identity.end() ); ++i) {
+		if( find( identity.begin(), identity.end(), i ) == identity.end() ) {
 			++ctr; 
 		} else {
-			adjust[i] = ctr;
+			adjust[ i ] = ctr;
 		}
 	}
 
-	boundary_ids_.clear();
-	boundary_coords_.clear();
-	tile_control_points_.clear();
+	boundary_ids->clear();
+	boundary_coords->clear();
+	tile_control_points->clear();
 
 	int skip = 0; 
-	for ( size_t j = 0; j < shape.size() ; ++j) {
-		vector<double> c = {shape[j].x, shape[j].y};
-		if (identity[j] >= 0) { // Ignore control points
-			if ( (identity[j] == 0) && (skip%2 == 0) ) { // Skip every other stop codon in fixed orientation
-				boundary_coords_.push_back(c);
-				boundary_ids_.push_back(identity[j]-adjust[identity[j]]);
+	for( size_t j = 0; j < shape.size() ; ++j ) {
+		vector<double> c = { shape[ j ].x, shape[ j ].y };
+		if( identity[ j ] >= 0 ) { // Ignore control points
+			if( ( identity[ j ] == 0 ) && ( skip%2 == 0 ) ) { // Skip every other stop codon in fixed orientation
+				boundary_coords->push_back( c );
+				boundary_ids->push_back( identity[ j ]-adjust[ identity[ j ] ] );
 				++skip;
-			} else if (identity[j] == 0) {
+			} else if( identity[ j ] == 0 ) {
 				++skip;
 			} else {
-				boundary_coords_.push_back(c);
-				boundary_ids_.push_back(identity[j]-adjust[identity[j]]);
+				boundary_coords->push_back( c );
+				boundary_ids->push_back( identity[ j ] - adjust[ identity[ j ] ] );
 			}
 		} else {
 			// Save control points to compute area, etc.
-			tile_control_points_.push_back(c);
+			tile_control_points->push_back( c );
 		}
 	}
 }
 
-void Colloid::buildMotif_() 
+void Colloid::initMotif_( double max_scale_factor=5.0, double min_scale_factor=0.2, int n_scale_incr=100, int N=20 ) 
 {
-	// Put motif inside of the boundary.
+	/**
+	 * Initialize the motif.	
+	 * 
+	 * This attempts to place the motif entirely inside the tile's boundary after it has been initialized.
+	 * The default tile settings from the Tactile library are generally convenient and convex so
+	 * it is recommended that these be kept until this initialization is run. If a motif does not fit,
+	 * then the tile is expanded until it "just fits"; similarly, if it initially fits, the tile is 
+	 * shrunk until it cannot be shrunk any more.
+	 * 
+	 * @param max_scale_factor Maximum factor to scale the default Tactile tile size to trying to fit the motif inside of it.
+	 * @param min_scale_factor Minimum factor to scale the default Tactile tile size to trying to fit the motif inside of it.
+	 * @param n_scale_incr Number of intermediate scale factors to try.
+	 * @param N Number of points to place along edges when discretizing into a polygon.
+	 *
+	 * @throws customException if initialization fails for any reason.
+	 */
+	bool fundamental = false;
+	const int tt = int( tile_.getTilingType() );
+	for( unsigned int i = 0; i < sizeof( FD_TYPES )/sizeof( FD_TYPES[ 0 ] ); ++i ) {
+		if( tt == FD_TYPES[ i ] ) {
+			fundamental = true;
+		}
+	}
+
+	if (fundamental) {
+		// If no restrictions, place motif COM on tile COM and shrinkwrap
+		// Tactile default parameters provide convenient, convex, starting points
+		// at least one control point is at (0,0).
+
+		// 1. Place motif so its COM is on tile COM
+		// tile COM is estimated from the functional points on the perimeter
+		vector<double> motif_com = m_.getCOM(), tile_com = boundaryCOM(), dx;
+		for( size_t i=0; i < motif_com.size(); ++i ) {
+			dx.push_back( tile_com[ i ] - motif_com[ i ] );
+		}
+		m_.translate( dx );
+
+		// 2. Expand/contract the tile until motif "just" fits
+		double min_scale = tile_scale_*min_scale_factor;
+		double max_scale = tile_scale_*max_scale_factor;
+		double orig_scale = tile_scale_, last_scale = tile_scale_;
+		if( isMotifInside( N ) ) {
+			// Shrink the tile to fit
+			for( int i = 0; i <= n_scale_incr; ++i ) {
+				tile_scale_ = ( orig_scale - ( orig_scale - min_scale )/n_scale_incr*i );
+				vector<double> dd = { ( tile_scale_/last_scale-1.0 )*tile_com[ 0 ], ( tile_scale_/last_scale-1.0 )*tile_com[ 1 ] };
+				m_.translate( dd );
+
+				if( !isMotifInside( N ) ) {
+					// Move motif back to last position
+					dd[ 0 ] = -dd[ 0 ];
+					dd[ 1 ] = -dd[ 1 ];
+					m_.translate( dd );
+			
+					// Save last good scale
+					tile_scale_ = last_scale;
+					break;
+				}
+				last_scale = tile_scale_;
+			}
+			throw( customException( "unable to initialize motif inside tile" ) );
+		} else {
+			// Expand the tile to fit
+			for( int i = 0; i <= n_scale_incr; ++i ) {
+				tile_scale_ = ( orig_scale + ( max_scale-orig_scale )/n_scale_incr*i );
+				vector<double> dd = { ( tile_scale_/last_scale-1.0 )*tile_com[ 0 ], ( tile_scale_/last_scale-1.0 )*tile_com[ 1 ] };
+				m_.translate( dd );
+				if( isMotifInside( N ) ) {
+					// Motif and tile now in acceptable positions
+					break;
+				}
+			}
+			throw( customException( "unable to initialize motif inside tile" ) );
+		}
+
+		buildBoundary_(); // Re-build based on final tile_scale_
+	} else {
+		// 1. Place motif COM and align
+		// For certain IH tiles, the object must have certain conditions
+
+		throw( customException( "this tile type is not yet supported" ) );
+	}
+
 	return;
 }
 
-vector<vector<dvec2>> Colloid::perimeter_(double u0, double du, int n) {
+vector<vector<dvec2>> Colloid::perimeter_edges_(double u0, double du, int n, double scale) {
+	/**
+	 * Create the Bezier curves that will serve as tile edges.
+	 *
+	 * These curves are generally from (0,0) to (1,0) with some curvature between them,
+	 * and are uniformly scaled.  They will be rotated into place later on by the
+	 * Tactile library.
+	 * 
+	 * @param u0 Starting point for boundary points along Bezier curve. Should be in (0,1).
+	 * @param du Gap along Bezier curve between boundary points. Should be < 1.
+	 * @param n Number of points to place along each edge.
+	 * @param scale The default Tactile tile is isotropically scaled by this factor.
+	 * 
+	 * @returns Discretized points along each edge, including Bezier control points at the ends.
+	 */	
+
 	// Create a vector to hold some edge shapes.  The tiling tells you
 	// how many distinct edge shapes you need, but doesn't know anything
 	// about how those shapes might be represented.  It simply assumes
@@ -266,10 +575,10 @@ vector<vector<dvec2>> Colloid::perimeter_(double u0, double du, int n) {
 		// Define Bezier Curve that is sort of like a sphere impacting
 		// This could definitely be changed, but will introduce more
 		// free parameters.
-		ej.push_back( dvec2( 0, 0 ) );
-		ej.push_back( dvec2( 1/3., sphere_deform_ ));
-		ej.push_back( dvec2( 2/3., sphere_deform_ ));
-		ej.push_back( dvec2( 1, 0 ) );
+		ej.push_back( dvec2( 0.0, 0.0 ) );
+		ej.push_back( dvec2( 1/3.*scale, sphere_deform_*scale ) );
+		ej.push_back( dvec2( 2/3.*scale, sphere_deform_*scale ) );
+		ej.push_back( dvec2( 1.0*scale, 0.0 ) );
 
 		// Now, depending on the edge shape class, enforce symmetry 
 		// constraints on edges.
@@ -277,16 +586,16 @@ vector<vector<dvec2>> Colloid::perimeter_(double u0, double du, int n) {
 		case J: 
 			break;
 		case U:
-			ej[2].x = 1.0 - ej[1].x;
-			ej[2].y = ej[1].y;
+			ej[ 2 ].x = 1.0*scale - ej[ 1 ].x;
+			ej[ 2 ].y = ej[ 1 ].y;
 			break;
 		case S:
-			ej[2].x = 1.0 - ej[1].x;
-			ej[2].y = -ej[1].y;
+			ej[ 2 ].x = 1.0*scale - ej[ 1 ].x;
+			ej[ 2 ].y = -ej[ 1 ].y;
 			break;
 		case I:
-			ej[1].y = 0.0;
-			ej[2].y = 0.0;
+			ej[ 1 ].y = 0.0;
+			ej[ 2 ].y = 0.0;
 			break;
 		}
 
@@ -294,15 +603,125 @@ vector<vector<dvec2>> Colloid::perimeter_(double u0, double du, int n) {
 		// deformed edge. Here, i'll assume the stop codon is in contact
 		// with the other 4. Later we will decide which stop codon to drop.
 		vector<dvec2> coords;
-		coords.push_back( dvec2( 0, 0 ) );
+		coords.push_back( dvec2( 0.0, 0.0 ) );
 		for( int k = 0; k < n; ++k ) {
-			coords.push_back(bezier(ej[0], ej[1], ej[2], ej[3], u0+k*du));	
+			coords.push_back( bezier( ej[ 0 ], ej[ 1 ], ej[ 2 ], ej[ 3 ], u0+k*du ) );	
 		}
-		coords.push_back( dvec2( 1, 0 ) );
+		coords.push_back( dvec2( 1.0*scale, 0 ) );
 
-		edges.push_back(coords);
+		edges.push_back( coords );
 	}
 
 	return edges;
 }
 
+void Colloid::dump( const string filename ) {
+	/**
+	 * Dump the colloid to a JSON file.
+	 * 
+	 * @param filename Name of file to write to. Will overwrite by default.
+	 *
+	 * @throws customException if anything goes wrong.
+	 */
+
+	json j;
+
+	try {
+		if( motif_assigned_ ) {
+			j[ "Motif" ] = {
+				{ "coords", m_.getCoords() },
+				{ "types", m_.getTypes() },
+				{ "parameters", m_.getParameters() }
+			};
+		}
+
+		if( tile_assigned_ ) {
+			double params[ tile_.numParameters() ];
+			tile_.getParameters( params );
+			vector<double> p;
+			for( int i=0; i < tile_.numParameters(); ++i ) {
+				p.push_back( params[ i ] );
+			}
+			j[ "Tile" ] = {
+				{ "ih_type", int( tile_.getTilingType() ) },
+				{ "parameters", p }
+			};
+		}
+
+		if( built_ ) {
+			j[ "Properties" ] = {
+				{ "boundary_ids", boundary_ids_ },
+				{ "boundary_coords", boundary_coords_ },
+				{ "sphere_deform", sphere_deform_ },
+				{ "edge_du", edge_du_ },
+				{ "edge_u0", edge_u0_ },
+				{ "tile_scale", tile_scale_ },
+				{ "tile_control_points", tile_control_points_ },
+				{ "params", params_ },
+				{ "built", built_ }
+			};
+		}
+
+		std::ofstream out( filename );
+		out << std::setw( 4 ) << j << std::endl;
+	} catch ( const exception& e ) {
+		throw( customException( "unable to dump colloid" ) );
+	}
+}
+
+void Colloid::load( const string filename ) {
+	/**
+	 * Load a colloid from a JSON file.
+	 * 
+	 * @param filename Name of file to read from.
+	 *
+	 * @throws customException if anything goes wrong.
+	 */
+
+	ifstream in( filename );
+	json j;
+	in >> j;
+
+	if( j.contains( "Motif" ) ) {
+		try {
+			Motif m;
+			m.setCoords( j[ "Motif" ][ "coords" ].get<vector<vector<double>>>(), j[ "Motif" ][ "parameters" ][ 2 ].get<double>() );
+			m.setTypes( j[ "Motif" ][ "types" ].get<vector<string>>() );
+			m.setParameters( j[ "Motif" ][ "parameters" ].get<vector<double>>() ); // Unnecessary, but for good measure
+			setMotif( m );
+		} catch ( const exception& e ) {
+			throw( customException( "unable to load Motif" ) );
+		}
+	}
+
+	if( j.contains( "Tile" ) ) {
+		try {
+			IsohedralTiling t( j[ "Tile" ][ "ih_type" ].get<int>() );
+			vector<double> p = j[ "Tile" ][ "parameters" ].get<vector<double>>();
+			double params[ tile_.numParameters() ];
+			for( int i=0; i < tile_.numParameters(); ++i ) {
+				params[ i ] = p[ i ];
+			}
+			t.setParameters( params );
+			setTile( t );
+		} catch ( const exception& e ) {
+			throw( customException( "unable to load Tile" ) );
+		}
+	}	
+
+	if( j.contains( "Properties" ) ) {
+		try {
+			edge_du_ = j[ "Properties" ][ "edge_du" ].get<double>();
+			edge_u0_ = j[ "Properties" ][ "edge_u0" ].get<double>();
+			tile_scale_ = j[ "Properties" ][ "tile_scale" ].get<double>();
+			sphere_deform_ = j[ "Properties" ][ "sphere_deform" ].get<double>();
+			boundary_ids_ = j[ "Properties" ][ "boundary_ids" ].get<vector<int>>();
+			boundary_coords_ = j[ "Properties" ][ "boundary_coords" ].get<vector<vector<double>>>();
+			tile_control_points_ = j[ "Properties" ][ "tile_control_points" ].get<vector<vector<double>>>();
+			params_ = j[ "Properties" ][ "params" ].get<vector<double>>();
+			built_ = j[ "Properties" ][ "built" ].get<bool>();
+		} catch ( const exception& e ) {
+			throw( customException( "unable to load Properties" ) );
+		}
+	}
+}

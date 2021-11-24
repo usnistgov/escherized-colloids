@@ -26,23 +26,28 @@ class Motif
 public:
         Motif();
         ~Motif();
+	
+	Motif(Motif& other); 
+	void copy(Motif& other);
 
         void loadXYZ( const string filename ); // Load from XYZ file
         void dumpXYZ( const string filename ); // Print to XYZ file
 
-        void setCoords( const vector<vector<double>> &coords );
-	const vector<vector<double>> getCoords() { return coords_; }
+        void setCoords( const vector<vector<double>> &coords, double theta );
+	const vector<vector<double>> getCoords() const { return coords_; }
 
         void setTypes( const vector<string> &types );
-	const vector<string> getTypes() { return types_; }
+	const vector<string> getTypes() const { return types_; }
 
 	void setParameters ( const vector<double> &params );
         const vector<double> getParameters(); // Return COM and angle
 
+	vector<double> getCOM() { computeCOM_(); return com_; }
+	void rotate( const double theta );
+        void translate( const vector<double> &dx );
+
 private:
 	void computeCOM_();
-	void rotate_( const double theta );
-        void translate_( const vector<double> &dx );
 
         vector<vector<double>> coords_;
         vector<string> types_;

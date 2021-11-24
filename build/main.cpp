@@ -39,16 +39,40 @@ static void show_usage(char *name)
 int main( int argc, char **argv )
 {
 	Motif m;
-	m.loadXYZ("test.xyz");
-	const vector<double> params = {0, 0, 3.14159/2.0};
-	m.setParameters(params);
+	//m.loadXYZ("test.xyz");
+	vector<vector<double>> coords;
+	vector<double> c1 = {0, 0}, c2 = {0, 1}, c3 = {1, 0};
+	vector<string> ty = {"A", "B", "A"};
+	coords.push_back(c1);
+	coords.push_back(c2);
+	coords.push_back(c3);
+	m.setCoords(coords, 0);
+	m.setTypes(ty);
+	//const vector<double> params = {0, 0, 3.14159/2.0};
+	//m.setParameters(params);
 
-	Colloid c;
-	c.setMotif(m);
-	Motif n = c.getMotif();
-	n.dumpXYZ("dummy.xyz");
+	Motif n(m);
+	//n.copy(m);
+	vector<double> p = n.getParameters();
+       	for (int i=0; i< p.size(); ++i) {
+		cout << p[i] << endl;
+	}
 
-	/*
+	IsohedralTiling t(7), u(1);
+	/*cout << int(t.numParameters()) << " " << int(u.numParameters()) << endl;
+	u = t;
+	cout << int(t.numParameters()) << " " << int(u.numParameters()) << endl;*/
+
+	Colloid c(m, t, 2.0, 0.3);
+	c.dump("dummy.json");
+
+	Colloid d;
+	d.load("dummy.json");
+	d.dump("alt.json");
+	//Motif n = c.getMotif();
+	//n.dumpXYZ("dummy.xyz");*/
+
+	/*	
 	if ( argc < 3 ) {
 		show_usage(argv[0]);
 		return 1;
@@ -101,9 +125,9 @@ int main( int argc, char **argv )
 				}
 			}
 		} 
-	}*/
+	}
 
-	/*
+	
 	// Construct a tiling of the given type.
         IsohedralTiling t( tiling_types[idx] );
 
@@ -123,8 +147,8 @@ int main( int argc, char **argv )
 	}	
 
 	// Create the tile
-	make_sda( t, params, filename );*/
-
+	//make_sda( t, params, filename );
+	*/
 	return 0;
 }
 
