@@ -94,7 +94,6 @@ Colloid::Colloid( Motif m, IsohedralTiling t, double tile_scale, double tile_u0 
 
 	setMotif(m);
 	setTile(t);
-
 	init();
 }
 
@@ -326,6 +325,7 @@ void Colloid::buildBoundary_()
 	 * The boundary is made using the "4+1" rule. so there are 4 interacting points and 1
 	 * "stop codon" on each edge.	
 	 */
+
 	perimeter_( edge_u0_, edge_du_, 1+4+1, tile_scale_, &boundary_ids_, &boundary_coords_, &tile_control_points_ );
 }
 
@@ -464,6 +464,7 @@ void Colloid::initMotif_( double max_scale_factor=5.0, double min_scale_factor=0
 	 *
 	 * @throws customException if initialization fails for any reason.
 	 */
+
 	bool fundamental = false;
 	const int tt = int( tile_.getTilingType() );
 	for( unsigned int i = 0; i < sizeof( FD_TYPES )/sizeof( FD_TYPES[ 0 ] ); ++i ) {
@@ -491,7 +492,9 @@ void Colloid::initMotif_( double max_scale_factor=5.0, double min_scale_factor=0
 		double orig_scale = tile_scale_, last_scale = tile_scale_;
 		if( isMotifInside( N ) ) {
 			// Shrink the tile to fit
+			bool found = false;
 			for( int i = 0; i <= n_scale_incr; ++i ) {
+				cout << i << endl;
 				tile_scale_ = ( orig_scale - ( orig_scale - min_scale )/n_scale_incr*i );
 				vector<double> dd = { ( tile_scale_/last_scale-1.0 )*tile_com[ 0 ], ( tile_scale_/last_scale-1.0 )*tile_com[ 1 ] };
 				m_.translate( dd );
@@ -501,26 +504,33 @@ void Colloid::initMotif_( double max_scale_factor=5.0, double min_scale_factor=0
 					dd[ 0 ] = -dd[ 0 ];
 					dd[ 1 ] = -dd[ 1 ];
 					m_.translate( dd );
-			
+
 					// Save last good scale
 					tile_scale_ = last_scale;
+					found = true;
 					break;
 				}
 				last_scale = tile_scale_;
 			}
-			throw( customException( "unable to initialize motif inside tile" ) );
+			if( !found ) {
+				throw( customException( "unable to initialize motif inside tile" ) );
+			}
 		} else {
 			// Expand the tile to fit
+			bool found = false;
 			for( int i = 0; i <= n_scale_incr; ++i ) {
 				tile_scale_ = ( orig_scale + ( max_scale-orig_scale )/n_scale_incr*i );
 				vector<double> dd = { ( tile_scale_/last_scale-1.0 )*tile_com[ 0 ], ( tile_scale_/last_scale-1.0 )*tile_com[ 1 ] };
 				m_.translate( dd );
 				if( isMotifInside( N ) ) {
 					// Motif and tile now in acceptable positions
+					found = true;
 					break;
 				}
 			}
-			throw( customException( "unable to initialize motif inside tile" ) );
+			if( !found ) {
+				throw( customException( "unable to initialize motif inside tile" ) );	
+			}
 		}
 
 		buildBoundary_(); // Re-build based on final tile_scale_
@@ -606,60 +616,6 @@ vector<vector<dvec2>> Colloid::perimeter_edges_(double u0, double du, int n, dou
 	return edges;
 }
 
-void Colloid::dump( const string filename ) {
-	/**
-	 * Dump the colloid to a JSON file.
-	 * 
-	 * @param filename Name of file to write to. Will overwrite by default.
-	 *
-	 * @throws customException if anything goes wrong.
-	 */
-
-	json j;
-
-	try {
-		if( motif_assigned_ ) {
-			j[ "Motif" ] = {
-				{ "coords", m_.getCoords() },
-				{ "types", m_.getTypes() },
-				{ "parameters", m_.getParameters() }
-			};
-		}
-
-		if( tile_assigned_ ) {
-			double params[ tile_.numParameters() ];
-			tile_.getParameters( params );
-			vector<double> p;
-			for( int i=0; i < tile_.numParameters(); ++i ) {
-				p.push_back( params[ i ] );
-			}
-			j[ "Tile" ] = {
-				{ "ih_type", int( tile_.getTilingType() ) },
-				{ "parameters", p }
-			};
-		}
-
-		if( built_ ) {
-			j[ "Properties" ] = {
-				{ "boundary_ids", boundary_ids_ },
-				{ "boundary_coords", boundary_coords_ },
-				{ "sphere_deform", sphere_deform_ },
-				{ "edge_du", edge_du_ },
-				{ "edge_u0", edge_u0_ },
-				{ "tile_scale", tile_scale_ },
-				{ "tile_control_points", tile_control_points_ },
-				{ "params", params_ },
-				{ "built", built_ }
-			};
-		}
-
-		std::ofstream out( filename );
-		out << std::setw( 4 ) << j << std::endl;
-	} catch ( const exception& e ) {
-		throw( customException( "unable to dump colloid" ) );
-	}
-}
-
 void Colloid::load( const string filename ) {
 	/**
 	 * Load a colloid from a JSON file.
@@ -715,4 +671,103 @@ void Colloid::load( const string filename ) {
 			throw( customException( "unable to load Properties" ) );
 		}
 	}
+}
+
+void Colloid::dump( const string filename ) {
+	/**
+	 * Dump the colloid to a JSON file.
+	 * 
+	 * @param filename Name of file to write to. Will overwrite by default.
+	 *
+	 * @throws customException if anything goes wrong.
+	 */
+
+	json j;
+
+	try {
+		if( motif_assigned_ ) {
+			j[ "Motif" ] = {
+				{ "coords", m_.getCoords() },
+				{ "types", m_.getTypes() },
+				{ "parameters", m_.getParameters() }
+			};
+		}
+
+		if( tile_assigned_ ) {
+			double params[ tile_.numParameters() ];
+			tile_.getParameters( params );
+			vector<double> p;
+			for( int i=0; i < tile_.numParameters(); ++i ) {
+				p.push_back( params[ i ] );
+			}
+			j[ "Tile" ] = {
+				{ "ih_type", int( tile_.getTilingType() ) },
+				{ "parameters", p }
+			};
+		}
+
+		if( built_ ) {
+			j[ "Properties" ] = {
+				{ "boundary_ids", boundary_ids_ },
+				{ "boundary_coords", boundary_coords_ },
+				{ "sphere_deform", sphere_deform_ },
+				{ "edge_du", edge_du_ },
+				{ "edge_u0", edge_u0_ },
+				{ "tile_scale", tile_scale_ },
+				{ "tile_control_points", tile_control_points_ },
+				{ "params", params_ },
+				{ "built", built_ }
+			};
+		}
+
+		std::ofstream out( filename );
+		out << std::setw( 4 ) << j << std::endl;
+	} catch ( const exception& e ) {
+		throw( customException( "unable to dump colloid" ) );
+	}
+}
+
+void Colloid::dumpXYZ( const string filename ) {
+	/**
+	 * Dump the colloid to an XYZ file.
+	 * 
+	 * @param filename Name of file to write to. Will overwrite by default.
+	 *
+	 * @throws customException if anything goes wrong.
+	 */
+
+	vector<vector<double>> motif_coords = m_.getCoords();
+	vector<string> motif_types = m_.getTypes();
+ 
+	if( motif_coords.empty() ) {
+		throw( customException( "motif coordinates have not been assigned" ) );
+	}
+	if( motif_types.empty() ) {
+		throw( customException( "motif identities have not been assigned" ) );
+	}
+	if( boundary_coords_.empty() ) {
+		throw( customException( "tile boundary coordinates have not been assigned" ) );
+	}
+	if( boundary_ids_.empty() ) {
+		throw( customException( "tile boundary identities have not been assigned" ) );
+	}
+
+	try {
+		ofstream xyz( filename );
+
+		xyz << boundary_coords_.size() + motif_coords.size() << endl;
+		xyz << endl;
+		
+		for( size_t i = 0; i < boundary_coords_.size(); ++i ) {
+			xyz << boundary_ids_[ i ] << "\t" << boundary_coords_[ i ][ 0 ] << "\t" << boundary_coords_[ i ][ 1 ] << "\t" << 0 << endl;
+		}
+
+		for( size_t i = 0; i < motif_coords.size(); ++i ) {
+			xyz << motif_types[ i ] << "\t" << motif_coords[ i ][ 0 ] << "\t" << motif_coords[ i ][ 1 ] << "\t" << 0 << endl;
+		}
+	} catch( const exception& e ) {
+		throw( customException( "unable to write to xyz file " ) );
+	}
+
+	return;
 }

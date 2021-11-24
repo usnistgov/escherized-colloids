@@ -45,6 +45,7 @@ void Motif::loadXYZ( const string filename ) {
 	ifstream xyz( filename );
 	string line, t;
 	int ctr = 0, N = 0;
+	double dummy;
 	vector<vector<double>> coords;
 	vector<string> types;
 	
@@ -52,13 +53,13 @@ void Motif::loadXYZ( const string filename ) {
 		while( getline( xyz, line ) )
 		{
 			istringstream iss( line );
-			vector<double> c = { 0, 0, 0 };
+			vector<double> c = { 0, 0 };
 			if( ctr == 0 ) {
 				iss >> N; // First line
 			} else if (ctr == 1) {
 				;
 			} else {
-				iss >> t >> c[0] >> c[1] >> c[2];
+				iss >> t >> c[0] >> c[1] >> dummy;
 				types.push_back( t );
 				coords.push_back( c );
 			}
@@ -101,7 +102,7 @@ void Motif::dumpXYZ( const string filename ) {
 		xyz << endl;
 		
 		for( size_t i = 0; i < coords_.size(); ++i ) {
-			xyz << types_[ i ] << "\t" << coords_[ i ][ 0 ] << "\t" << coords_[ i ][ 1 ] << "\t" << coords_[ i ][ 2 ] << endl;
+			xyz << types_[ i ] << "\t" << coords_[ i ][ 0 ] << "\t" << coords_[ i ][ 1 ] << "\t" << 0 << endl;
 		}
 	} catch( const exception& e ) {
 		throw( customException( "unable to write to xyz file " ) );
@@ -199,7 +200,7 @@ void Motif::computeCOM_() {
 	 * Compute the center of mass of the motif and store it internally.
 	 */
 
-	vector<double> com = {0 .0, 0.0 };
+	vector<double> com = { 0.0, 0.0 };
 	const size_t N = coords_.size();
 	for( size_t i = 0; i < N; ++i ) {
 		for( size_t j = 0; j < 2; ++j ) {

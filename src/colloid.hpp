@@ -53,8 +53,9 @@ public:
 
 	void init() { buildBoundary_(); initMotif_(5.0, 0.2, 100, 20); built_ = true; } // Initialize the colloid.
 
-	void dump( const string filename );
 	void load( const string filename );
+	void dump( const string filename );
+	void dumpXYZ( const string filename );	
 
 	vector<double> boundaryCOM();
 
