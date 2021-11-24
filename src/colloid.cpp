@@ -1,13 +1,4 @@
 /**
- * A colloid is composed of an isohedral tile boundary and internal motif.
- * 
- * This file contains functions to build and manipulate colloids. Tile 
- * information is inherited from the Tactile library, while a Motif
- * class is described in motif.hpp. This should be self-contained so 
- * that, for example, external optimizers can manipulate the colloid's
- * parameters controlling its shape, etc. and compute properties from
- * that.
- * 
  * @author Nathan A. Mahynski
  */
 
