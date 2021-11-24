@@ -48,8 +48,9 @@ public:
 private:
 	void computeCOM_();
 
-	double theta_;	// Absolute orientation (right handed, counterclockwise convention).
-	vector<string> types_;	// Chemical identity of each particle in the motif.
+	double theta_; // Absolute orientation (right handed, counterclockwise convention).
+	string symmetry_; // Point symmetry the motif has (must be determined by user).
+	vector<string> types_; // Chemical identity of each particle in the motif.
 	vector<double> com_; // (x,y) center of mass.
 
         vector<vector<double>> coords_; // (x,y) coordinates of motif's constituent particles.	
