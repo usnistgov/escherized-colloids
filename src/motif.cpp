@@ -258,3 +258,29 @@ void Motif::translate( const vector<double> &dx ) {
 	return;
 }
 
+void Motif::load( const string filename ) {
+	/**
+	 * Load a motif from a JSON file.
+	 * 
+	 * @param filename Name of file to read from.
+	 *
+	 * @throws customException if anything goes wrong.
+	 */
+
+	ifstream in( filename );
+	json j;
+	in >> j;
+
+	try {
+		double theta = j[ "theta" ].get<double>();
+		vector<vector<double>> coords = j[ "coords" ].get<vector<vector<double>>>();
+		vector<string> types = j[ "types" ].get<vector<string>>();
+		setCoords( coords, theta );
+		setTypes( types );	
+		symmetry_ = j[ "symmetry" ].get<string>();
+	} catch ( const exception& e ) {
+		throw( customException( "unable to load Motif" ) );
+	}
+
+}
+

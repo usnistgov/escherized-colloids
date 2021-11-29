@@ -489,7 +489,8 @@ void Colloid::initMotif_( double max_scale_factor=5.0, double min_scale_factor=0
 		// 2. Expand/contract the tile until motif "just" fits
 		double min_scale = tile_scale_*min_scale_factor;
 		double max_scale = tile_scale_*max_scale_factor;
-		double orig_scale = tile_scale_, last_scale = tile_scale_;
+		double orig_scale = tile_scale_;
+		double last_scale = tile_scale_;
 		if( isMotifInside( N ) ) {
 			// Shrink the tile to fit
 			bool found = false;
@@ -527,6 +528,7 @@ void Colloid::initMotif_( double max_scale_factor=5.0, double min_scale_factor=0
 					found = true;
 					break;
 				}
+				last_scale = tile_scale_;
 			}
 			if( !found ) {
 				throw( customException( "unable to initialize motif inside tile" ) );	

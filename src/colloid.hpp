@@ -51,7 +51,7 @@ public:
 
         bool isMotifInside( const int N );
 
-	void init() { buildBoundary_(); initMotif_(5.0, 0.2, 100, 20); built_ = true; } // Initialize the colloid.
+	void init() { buildBoundary_(); initMotif_(5.0, 0.2, 1000, 20); built_ = true; } // Initialize the colloid.
 
 	void load( const string filename );
 	void dump( const string filename );

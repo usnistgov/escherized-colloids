@@ -17,8 +17,10 @@
 #include <string>
 
 #include "utils.hpp"
+#include "json.hpp"
 
 using namespace std;
+using json = nlohmann::json;
 
 class Motif
 {
@@ -44,6 +46,8 @@ public:
 	vector<double> getCOM() { computeCOM_(); return com_; }
 	void rotate( const double theta );
         void translate( const vector<double> &dx );
+
+	void load( const string filename );
 
 private:
 	void computeCOM_();
