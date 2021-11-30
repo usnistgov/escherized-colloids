@@ -47,17 +47,22 @@ $ export ARMA_INCLUDE_PATH=/usr/include/;
 $ ./configure -l arma --header-only-version
 ~~~
 
-See [here](https://www.kthohr.com/optimlib.html#installation-method-2-header-only-library) for more details on installing it as a header only library.
+See [here](https://optimlib.readthedocs.io/en/latest/installation.html) for more details on installing it as a header only library.
 
-When compiling your code, add `#define OPTIM_ENABLE_ARMA_WRAPPERS` and `#include "optim.hpp` to your cpp file, and set the include path to the head_only_version directory (e.g.,-I/path/to/optimlib/header_only_version) in your Makefile.
+When compiling your code, add `#define OPTIM_ENABLE_ARMA_WRAPPERS` and `#include "optim.hpp` to your cpp file, and set the include path to the head_only_version directory (e.g.,-I/path/to/optimlib/header_only_version) in your Makefile. See the `examples/` directory for example implementations.
 
 You should also perform tests as described [here](https://optimlib.readthedocs.io/en/latest/examples_and_tests.html).
 
 Example
 =======
-
 ~~~code
 $ cd examples/initialize_colloid/
 $ make
 $ bash run.sh # You can change parameters in this file as needed.
 ~~~
+
+To Do
+=====
+1. Add code standardization
+2. Add unittests
+3. Logic and coding for 47 non-FD tiles

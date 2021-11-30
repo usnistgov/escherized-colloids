@@ -35,7 +35,7 @@ class Colloid
 {
 public:
         Colloid();
-	Colloid( Motif m, IsohedralTiling t , double tile_scale, double tile_u0 );
+	Colloid( Motif m, IsohedralTiling t , double tile_u0 );
         ~Colloid();
 
 	vector<double> unscale_coords_( const vector<double> &scaled_coords );
@@ -60,11 +60,15 @@ public:
 
 	void load( const string filename );
 	void dump( const string filename );
-	void dumpXYZ( const string filename );	
+	void dumpXYZ( const string filename, const bool full );	
 
 	vector<double> boundaryCOM();
 
+	void setU0( const double u0 ) { edge_u0_ = u0; }
+	void setDU( const double du ) { edge_du_ = du; }
+
 private:
+	void defaults_();
 	void buildBoundary_();
 	void initMotif_( double max_scale_factor, double min_scale_factor, int n_scale_incr, int N );
 	void perimeter_( double u0, double du, int n, double scale, 
@@ -86,7 +90,7 @@ private:
 	vector<double> params_; // Unrolled parameter vector.
 
 	vector<vector<double>> boundary_coords_; // Coordinates of points on tile's boundary.
-	vector<vector<double>> tile_control_points_; // Control points on Bezier curves defining edges.
+	vector<vector<double>> tile_control_points_; // Control points on Bezier curves which are tile vertices.
 
         IsohedralTiling tile_; // Isohedral tile from Tactile library.
         Motif m_; // The colloid's motif.	

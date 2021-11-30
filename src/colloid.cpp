@@ -93,41 +93,43 @@ Colloid::Colloid(): tile_( IsohedralTiling( 1 ) )
 	 * colloid.
 	 */
 
-	tile_assigned_ = false;
-	motif_assigned_ = false;
-	built_ = false;
-	tile_scale_ = 1.0;
-	edge_u0_ = 0.0;
-	sphere_deform_ = 0.25; 
-	edge_du_ = 0.1; 
+	defaults_();
 }
 
-Colloid::Colloid( Motif m, IsohedralTiling t, double tile_scale, double tile_u0 ): tile_( IsohedralTiling( 1 ) ) 
+Colloid::Colloid( Motif m, IsohedralTiling t, double tile_u0 ): tile_( IsohedralTiling( 1 ) ) 
 {
 	/**
 	 * Instantiate a new colloid if all parameters are known (preferred method).
 	 * 
 	 * The Tactile library requires an isohedral tile number be given at instantiation
 	 * so the colloid is initialized, by default, to have tile IH1. This can be
-	 * changed later. Also by default, sphere_deform_ = 0.25, edge_du_ = 0.1.
-	 * The colloid is initialized with these paramter values and should be ready to
-	 * use when instantiated this way.
+	 * changed later.
 	 */
 
+	defaults_();
+	setU0( tile_u0 ); 
+
+	setMotif( m );
+	setTile( t );
+	init(); // This will find a good value for tile_scale_
+}
+
+void Colloid::defaults_() 
+{
+	/**
+	 * Assign default paramter values.
+	 */
 	tile_assigned_ = false;
 	motif_assigned_ = false;
 	built_ = false;
-	tile_scale_ = tile_scale;
-	edge_u0_ = tile_u0;
+	tile_scale_ = 1.0; 
+	setU0( 0.0 );
 	sphere_deform_ = 0.25; 
-	edge_du_ = 0.1;
-
-	setMotif(m);
-	setTile(t);
-	init();
+	setDU( 0.1 );
 }
 
-Colloid::~Colloid() {
+Colloid::~Colloid() 
+{
 }
 
 vector<double> Colloid::boundaryCOM() 
@@ -220,7 +222,7 @@ void Colloid::setParameters( const vector<double> &params )
 	}
 	tile_.setParameters( tile_params );
 
-	edge_u0_ = params[ 3-2*adjust+tile_.numParameters() ];
+	setU0( params[ 3-2*adjust+tile_.numParameters() ] );
 	tile_scale_ = params[ 3-2*adjust+tile_.numParameters()+1 ];
 
 	// Build boundary (need tile_control_points_) before computing scaled coordinates
@@ -241,7 +243,7 @@ void Colloid::setParameters( const vector<double> &params )
 	}
 
 	// This updates the params_ vector internally
-	getParameters();
+	//getParameters();
 }
 
 const vector<double> Colloid::getParameters() 
@@ -703,7 +705,7 @@ void Colloid::initMotif_( double max_scale_factor=5.0, double min_scale_factor=0
 		throw( customException( "this tile type is not yet supported" ) );
 	}
 
-	const vector<double> p = getParameters(); // Compute internal parameter vector to keep this updated
+	//const vector<double> p = getParameters(); // Compute internal parameter vector to keep this updated
 	return;
 }
 
@@ -892,12 +894,15 @@ void Colloid::dump( const string filename )
 	}
 }
 
-void Colloid::dumpXYZ( const string filename ) 
+void Colloid::dumpXYZ( const string filename, const bool full=false ) 
 {
 	/**
-	 * Dump the colloid to an XYZ file.
+	 * Dump the colloid to an XYZ file. The `full` option can improve visualization.
+	 * This lifts the motif in the z-direction "above" the tile, and also prints
+	 * the control points (type "CP") to the file.
 	 * 
 	 * @param filename Name of file to write to. Will overwrite by default.
+	 * @param full If true, print motif "above" the tile and show control points.
 	 *
 	 * @throws customException if anything goes wrong.
 	 */
@@ -921,15 +926,27 @@ void Colloid::dumpXYZ( const string filename )
 	try {
 		ofstream xyz( filename );
 
-		xyz << boundary_coords_.size() + motif_coords.size() << endl;
-		xyz << endl;
+		int add = 0, shift = 0;
+		if( full ){
+			add = tile_control_points_.size();
+			shift = 1;
+		}
+
+		xyz << boundary_coords_.size() + motif_coords.size() + add << endl;
+		xyz << endl;		
 		
 		for( size_t i = 0; i < boundary_coords_.size(); ++i ) {
 			xyz << boundary_ids_[ i ] << "\t" << boundary_coords_[ i ][ 0 ] << "\t" << boundary_coords_[ i ][ 1 ] << "\t" << 0 << endl;
 		}
 
 		for( size_t i = 0; i < motif_coords.size(); ++i ) {
-			xyz << motif_types[ i ] << "\t" << motif_coords[ i ][ 0 ] << "\t" << motif_coords[ i ][ 1 ] << "\t" << 0 << endl;
+			xyz << motif_types[ i ] << "\t" << motif_coords[ i ][ 0 ] << "\t" << motif_coords[ i ][ 1 ] << "\t" << shift << endl;
+		}
+		if( full ) {
+			for( size_t i = 0; i < tile_control_points_.size(); ++i ) {
+				xyz << "CP" << "\t" << tile_control_points_[ i ][ 0 ] << "\t" << tile_control_points_[ i ][ 1 ] << "\t" << 0 << endl;
+			
+			}
 		}
 	} catch( const exception& e ) {
 		throw( customException( "unable to write to xyz file " ) );
