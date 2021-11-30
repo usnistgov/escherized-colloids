@@ -190,9 +190,10 @@ void Colloid::setParameters( const vector<double> &params )
 	 * Assign all parameters defining the colloid.
 	 * 
 	 * The parameters are an unrolled (double) vector useful for optimization schemes.
-	 * They are: [motif scaled_com_x, motif scaled_com_y, motif_theta, {v0, v1, etc. for tile}, 
+	 * They are: [{motif scaled_com_x, motif scaled_com_y}, motif_theta, {v0, v1, etc. for tile}, 
 	 * edge_u0, tile_scale]. The scaled com's are values [0, 1] which describe the location
-	 * in terms of the bounding box around the tile. 
+	 * in terms of the bounding box around the tile. Motif COM coordinates are only used for tiles 
+	 * which are fundamental domains.
 	 * 
 	 * The motif will track its coordinates in absolute units, but the colloid uses 
 	 * reduced units since it knows about the tile and means that these variables can be 
@@ -208,23 +209,36 @@ void Colloid::setParameters( const vector<double> &params )
 	}
 
 	// Tile
+	bool fundamental = isTileFundamental();
+	int adjust = 0;
+	if( !fundamental ) {
+		adjust = 1;
+	}
 	double tile_params[ tile_.numParameters() ];
-	for ( int i = 3; i < tile_.numParameters()+3; ++i ) {
-		tile_params[ i-3 ] = params[ i ];
+	for ( int i = 3-3*adjust; i < tile_.numParameters()+3-3*adjust; ++i ) {
+		tile_params[ i-3+3*adjust ] = params[ i+1*adjust ];
 	}
 	tile_.setParameters( tile_params );
 
-	edge_u0_ = params[ 3+tile_.numParameters() ];
-	tile_scale_ = params[ 3+tile_.numParameters()+1 ];
+	edge_u0_ = params[ 3-2*adjust+tile_.numParameters() ];
+	tile_scale_ = params[ 3-2*adjust+tile_.numParameters()+1 ];
 
 	// Build boundary (need tile_control_points_) before computing scaled coordinates
 	buildBoundary_();
 
 	// Motif - convert scaled to absolute coordinates
-	const vector<double> scaled_coords = { params[0], params[1] };
-	const vector<double> us = unscale_coords_( scaled_coords );
-	const vector<double> motif_params = { us[0], us[1], params[2] };
-	m_.setParameters( motif_params );
+	if( fundamental ) {
+		const vector<double> scaled_coords = { params[0], params[1] };
+		const vector<double> us = unscale_coords_( scaled_coords );
+		const vector<double> motif_params = { us[0], us[1], params[2] };
+		m_.setParameters( motif_params );
+	} else {
+		// Will have to update motif's COM and angle according to specifics of each tile.
+
+		// Logic goes here ...
+
+		throw( customException( "non-fundamental tiles not yet supported" ) );
+	}
 
 	// This updates the params_ vector internally
 	getParameters();
@@ -236,8 +250,9 @@ const vector<double> Colloid::getParameters()
 	 * Retrieve all parameters defining the colloid. Also recomputes it internally.
 	 * 
 	 * The parameters are an unrolled (double) vector useful for optimization schemes.
-	 * They are: [motif scaled_com_x, motif scaled_com_y, motif_theta, {v0, v1, etc. for tile}, 
+	 * They are: [ {motif scaled_com_x, motif scaled_com_y}, motif_theta, {v0, v1, etc. for tile}, 
 	 * edge_u0, tile_scale]. See `setParameters()` for an explanation of the scaled coordinates.
+	 * Motif COM coordinates are only included for tiles which are fundamental domains.
 	 * 
 	 * @returns Parameter vector.
 	 *
@@ -252,13 +267,15 @@ const vector<double> Colloid::getParameters()
 
 	vector<double> dummy, rescaled;
 	dummy = m_.getParameters();
-	for ( size_t i=0; i < 2; ++i ) {
-		params_.push_back( dummy[ i ] ); // Unscaled COM coordinates
-	}
-	rescaled = scale_coords_( params_ );
+	if( isTileFundamental() ) { // If tile is FD motif COM coordinates are valid DoFs
+		for ( size_t i=0; i < 2; ++i ) {
+			params_.push_back( dummy[ i ] ); // Unscaled COM coordinates
+		}
+		rescaled = scale_coords_( params_ );
 
-	params_[0] = rescaled[0]; // scaled_com_x
-	params_[1] = rescaled[1]; // sclaed_com_y
+		params_[0] = rescaled[0]; // scaled_com_x
+		params_[1] = rescaled[1]; // scaled_com_y
+	} 
 	params_.push_back(dummy[2]); // theta
 	
 	double tile_dummy[ tile_.numParameters() ];
@@ -346,8 +363,14 @@ bool Colloid::isMotifInside( const int N=20 )
 	 * 
 	 * @param N Number of points to discretize each edge into.
 	 * 
-	 * @return Boolean if the motif is completely inside the tile.
+	 * @returns Boolean if the motif is completely inside the tile.
+	 *
+	 * @throws customException if tile or motif has not been assigned yet.
 	 */
+
+	if( !motif_assigned_ || !tile_assigned_ ) {
+		throw customException( "must assign assign tile and motif first" );
+	}
 
 	const double du = ( 1.0 - 0.0 )/N;
 	vector<int> boundary_ids;
@@ -376,8 +399,14 @@ double Colloid::fractionMotifInside( const int N=20 )
 	 * 
 	 * @param N Number of points to discretize each edge into.
 	 * 
-	 * @return double Number of points inside the tile.
+	 * @returns double Number of points inside the tile.
+	 *
+	 * @throws customException if tile or motif has not been assigned yet.
 	 */
+
+	if( !motif_assigned_ || !tile_assigned_ ) {
+		throw customException( "must assign assign tile and motif first" );
+	}
 
 	const double du = ( 1.0 - 0.0 )/N;
 	double outside = 0.0;
@@ -399,6 +428,30 @@ double Colloid::fractionMotifInside( const int N=20 )
 	return 1.0 - outside/c.size();
 }
 
+bool Colloid::isTileFundamental() 
+{
+	/**
+	 * Check if the tile is one of the 46 fundamental domain tiles or not.
+	 *
+	 * @returns Boolean of if the tile is a fundamental domain.
+	 *
+	 * @throws customException if tile has not been assigned yet.
+	 */
+	if( !tile_assigned_ ) {
+		throw( customException( "tile has not been assigned yet" ) );
+	}
+
+	bool fundamental = false;
+	const int tt = int( tile_.getTilingType() );
+	for( unsigned int i = 0; i < sizeof( FD_TYPES )/sizeof( FD_TYPES[ 0 ] ); ++i ) {
+		if( tt == FD_TYPES[ i ] ) {
+			fundamental = true;
+		}
+	}
+
+	return fundamental;
+}
+
 double Colloid::tileArea()
 {
 	/**
@@ -410,7 +463,13 @@ double Colloid::tileArea()
 	 * at https://www.wikihow.com/Calculate-the-Area-of-a-Polygon.
 	 *  
 	 * @returns Area of the tile.
+	 *
+	 * @throws customException if tile has not been assigned yet.
 	 */
+
+	if ( !tile_assigned_ ) {
+		throw( customException( "tile has not been assigned yet" ) );
+	}
 
 	const int n = tile_control_points_.size();
 	double sum1 = 0.0, sum2 = 0.0;
@@ -574,15 +633,7 @@ void Colloid::initMotif_( double max_scale_factor=5.0, double min_scale_factor=0
 	 * @throws customException if initialization fails for any reason.
 	 */
 
-	bool fundamental = false;
-	const int tt = int( tile_.getTilingType() );
-	for( unsigned int i = 0; i < sizeof( FD_TYPES )/sizeof( FD_TYPES[ 0 ] ); ++i ) {
-		if( tt == FD_TYPES[ i ] ) {
-			fundamental = true;
-		}
-	}
-
-	if (fundamental) {
+	if( isTileFundamental() ) {
 		// If no restrictions, place motif COM on tile COM and shrinkwrap
 		// Tactile default parameters provide convenient, convex, starting points
 		// at least one control point is at (0,0).
@@ -728,7 +779,8 @@ vector<vector<dvec2>> Colloid::perimeter_edges_(double u0, double du, int n, dou
 	return edges;
 }
 
-void Colloid::load( const string filename ) {
+void Colloid::load( const string filename ) 
+{
 	/**
 	 * Load a colloid from a JSON file.
 	 * 
@@ -785,7 +837,8 @@ void Colloid::load( const string filename ) {
 	}
 }
 
-void Colloid::dump( const string filename ) {
+void Colloid::dump( const string filename ) 
+{
 	/**
 	 * Dump the colloid to a JSON file.
 	 * 
@@ -839,7 +892,8 @@ void Colloid::dump( const string filename ) {
 	}
 }
 
-void Colloid::dumpXYZ( const string filename ) {
+void Colloid::dumpXYZ( const string filename ) 
+{
 	/**
 	 * Dump the colloid to an XYZ file.
 	 * 
