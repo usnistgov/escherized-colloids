@@ -47,36 +47,11 @@ $ export ARMA_INCLUDE_PATH=/usr/include/;
 $ ./configure -l arma --header-only-version
 ~~~
 
+See [here](https://www.kthohr.com/optimlib.html#installation-method-2-header-only-library) for more details on installing it as a header only library.
+
 When compiling your code, add `#define OPTIM_ENABLE_ARMA_WRAPPERS` and `#include "optim.hpp` to your cpp file, and set the include path to the head_only_version directory (e.g.,-I/path/to/optimlib/header_only_version) in your Makefile.
 
 You should also perform tests as described [here](https://optimlib.readthedocs.io/en/latest/examples_and_tests.html).
-
-pagmo
-=====
-Optimization is performed using the [pagmo](https://esa.github.io/pagmo2/index.html) library. This has several dependencies which may need to
-be installed, depending on your system.  Below is an example for Ubuntu 18.04LTS.
-
-1. Thread Building Blocks:
-~~~code
-$ echo "deb http://cz.archive.ubuntu.com/ubuntu eoan main universe" | sudo tee -a  /etc/apt/sources.list
-$ suod adt update
-$ sudo apt install libtbb-dev
-~~~
-
-2. [Boost](https://www.boost.org/)
-~~~code
-$ sudo apt-get install libboost-all-dev
-~~~
-
-To install pagmo locally (as you might on a cluster without admin privileges):
-~~~code
-$ git clone https://github.com/esa/pagmo2.git
-$ cd pagmo2
-$ mkdir build
-$ cd build
-$ cmake ../ -DPAGMO_BUILD_TESTS=ON -DPAGMO_BUILD_TUTORIALS=ON -DCMAKE_BUILD_TYPE=ON -DCMAKE_INSTALL_PREFIX=~/.local
-$ cmake --build . --target test
-~~~
 
 Example
 =======
