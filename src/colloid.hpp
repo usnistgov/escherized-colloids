@@ -38,6 +38,8 @@ public:
 	Colloid( Motif m, IsohedralTiling t , double tile_scale, double tile_u0 );
         ~Colloid();
 
+	vector<double> unscale_coords_( const vector<double> &scaled_coords );
+	vector<double> scale_coords_( const vector<double> &unscaled_coords );
         void setParameters( const vector<double> &params );
         const vector<double> getParameters();
 
@@ -50,8 +52,9 @@ public:
 	double tileArea();
 
         bool isMotifInside( const int N );
+	double fractionMotifInside( const int N );
 
-	void init() { buildBoundary_(); initMotif_(5.0, 0.2, 1000, 20); built_ = true; } // Initialize the colloid.
+	void init() { buildBoundary_(); initMotif_( 5.0, 0.2, 1000, 20 ); built_ = true; } // Initialize the colloid.
 
 	void load( const string filename );
 	void dump( const string filename );
@@ -65,7 +68,7 @@ private:
 	void perimeter_( double u0, double du, int n, double scale, 
 		vector<int>* boundary_ids, 
 		vector<vector<double>>* boundary_coords, 
-		vector<vector<double>>* tile_control_points);
+		vector<vector<double>>* tile_control_points );
 	vector<vector<dvec2>> perimeter_edges_( double u0, double du, int n, double scale );
 
 	bool tile_assigned_; // Has the tile been assigned yet?

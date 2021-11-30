@@ -4,7 +4,8 @@
 
 #include "colloid.hpp"
 
-bool pip( const vector<vector<double>> &polygon, const vector<double>& point ) {
+bool pip( const vector<vector<double>> &polygon, const vector<double>& point ) 
+{
 	/**
 	 * Check if a point is inside a polygon.
 	 * 
@@ -30,7 +31,8 @@ bool pip( const vector<vector<double>> &polygon, const vector<double>& point ) {
 	return c;
 }
 
-dvec2 bezier( dvec2 p0, dvec2 p1, dvec2 p2, dvec2 p3, double u ) {
+dvec2 bezier( dvec2 p0, dvec2 p1, dvec2 p2, dvec2 p3, double u ) 
+{
 	/**
 	 * Compute parameterized location along a Bezier curve.
  	 * 
@@ -51,7 +53,35 @@ dvec2 bezier( dvec2 p0, dvec2 p1, dvec2 p2, dvec2 p3, double u ) {
 	return coord;
 }
 
-Colloid::Colloid(): tile_( IsohedralTiling( 1 ) ) {
+vector<vector<double>> bbox (const vector<vector<double>> &points) {
+	/**
+	 * Compute the bounding box around a series of points. By convention,
+	 * the (min_x, min_y) coordinate is returned first.
+	 *
+	 * @param points All (x,y) coordinates to consider.
+	 *
+	 * @returns Bounding box coordinates.
+	 */
+	vector<double> max = {points[0][0], points[0][1]}, min = {points[0][0], points[0][1]};
+
+	for( size_t i=0; i < points.size(); ++i ) {
+		for( size_t j=0; j < 2; ++j ) {
+			if( points[i][j] < min[j] ) {
+				min[j] = points[i][j];
+			}
+			if( points[i][j] > max[j] ) {
+				max[j] = points[i][j];
+			}
+		}
+	}
+
+	vector<vector<double>> box = { {min[0], min[1]}, {max[0], min[1]}, {min[0], max[1]}, {max[0], max[1]} };
+
+	return box;
+}
+
+Colloid::Colloid(): tile_( IsohedralTiling( 1 ) ) 
+{
 	/**
 	 * Instantiate a new colloid.
 	 * 
@@ -70,10 +100,10 @@ Colloid::Colloid(): tile_( IsohedralTiling( 1 ) ) {
 	edge_u0_ = 0.0;
 	sphere_deform_ = 0.25; 
 	edge_du_ = 0.1; 
-	
 }
 
-Colloid::Colloid( Motif m, IsohedralTiling t, double tile_scale, double tile_u0 ): tile_( IsohedralTiling( 1 ) ) {
+Colloid::Colloid( Motif m, IsohedralTiling t, double tile_scale, double tile_u0 ): tile_( IsohedralTiling( 1 ) ) 
+{
 	/**
 	 * Instantiate a new colloid if all parameters are known (preferred method).
 	 * 
@@ -100,7 +130,8 @@ Colloid::Colloid( Motif m, IsohedralTiling t, double tile_scale, double tile_u0 
 Colloid::~Colloid() {
 }
 
-vector<double> Colloid::boundaryCOM() {
+vector<double> Colloid::boundaryCOM() 
+{
 	/**
 	 * Compute the center of mass (COM) of the boundary points.
 	 * 
@@ -129,26 +160,54 @@ vector<double> Colloid::boundaryCOM() {
 	}
 }
 
-void Colloid::setParameters( const vector<double> &params ) {
+vector<double> Colloid::unscale_coords_( const vector<double> &scaled_coords ) 
+{
+	/**
+	 * Unscale the motif's coordinates.
+	 */
+	vector<vector<double>> box = bbox( tile_control_points_ );
+	const double wx = box[1][0] - box[0][0], wy = box[2][1] - box[1][1];
+	const vector<double> us = { box[0][0] + scaled_coords[0]*wx, box[0][1] + scaled_coords[1]*wy };
+
+	return us;
+}
+
+vector<double> Colloid::scale_coords_( const vector<double> &unscaled_coords ) 
+{
+	/**
+	 * Scale the motif's coordinates.
+	 */
+	vector<vector<double>> box = bbox( tile_control_points_ );
+	const double wx = box[1][0] - box[0][0], wy = box[2][1] - box[1][1];
+	const vector<double> scaled = { ( unscaled_coords[0] - box[0][0] )/wx, ( unscaled_coords[1] - box[0][1] )/wy };
+
+	return scaled;
+}
+
+void Colloid::setParameters( const vector<double> &params ) 
+{
 	/**
 	 * Assign all parameters defining the colloid.
 	 * 
 	 * The parameters are an unrolled (double) vector useful for optimization schemes.
-	 * They are: [motif com_x, motif com_y, motif_theta, {v0, v1, etc. for tile}, 
-	 * edge_u0, tile_scale].
+	 * They are: [motif scaled_com_x, motif scaled_com_y, motif_theta, {v0, v1, etc. for tile}, 
+	 * edge_u0, tile_scale]. The scaled com's are values [0, 1] which describe the location
+	 * in terms of the bounding box around the tile. 
+	 * 
+	 * The motif will track its coordinates in absolute units, but the colloid uses 
+	 * reduced units since it knows about the tile and means that these variables can be 
+	 * given reasonable bounds to an optimizer in advance.
 	 * 
 	 * @param params Parameter vector described above.
 	 * 
 	 * @throws customException if tile or motif has not been assigned yet.
 	 */
 
-	if( !motif_assigned_ || !tile_assigned_ ) {
-		throw customException( "must assign colloid and tile before parameters" );
+	if( !motif_assigned_ || !tile_assigned_ ) { // Makes sure the tile and colloid have been assigned
+		throw customException( "must assign tile and motif before setting new parameters" );
 	}
 
-	const vector<double> motif_params = { params[0], params[1], params[2] };
-	m_.setParameters( motif_params );
-
+	// Tile
 	double tile_params[ tile_.numParameters() ];
 	for ( int i = 3; i < tile_.numParameters()+3; ++i ) {
 		tile_params[ i-3 ] = params[ i ];
@@ -156,20 +215,29 @@ void Colloid::setParameters( const vector<double> &params ) {
 	tile_.setParameters( tile_params );
 
 	edge_u0_ = params[ 3+tile_.numParameters() ];
-
 	tile_scale_ = params[ 3+tile_.numParameters()+1 ];
+
+	// Build boundary (need tile_control_points_) before computing scaled coordinates
+	buildBoundary_();
+
+	// Motif - convert scaled to absolute coordinates
+	const vector<double> scaled_coords = { params[0], params[1] };
+	const vector<double> us = unscale_coords_( scaled_coords );
+	const vector<double> motif_params = { us[0], us[1], params[2] };
+	m_.setParameters( motif_params );
 
 	// This updates the params_ vector internally
 	getParameters();
 }
 
-const vector<double> Colloid::getParameters() {
+const vector<double> Colloid::getParameters() 
+{
 	/**
-	 * Retrieve all parameters defining the colloid.
+	 * Retrieve all parameters defining the colloid. Also recomputes it internally.
 	 * 
 	 * The parameters are an unrolled (double) vector useful for optimization schemes.
-	 * They are: [motif com_x, motif com_y, motif_theta, {v0, v1, etc. for tile}, 
-	 * edge_u0, tile_scale].
+	 * They are: [motif scaled_com_x, motif scaled_com_y, motif_theta, {v0, v1, etc. for tile}, 
+	 * edge_u0, tile_scale]. See `setParameters()` for an explanation of the scaled coordinates.
 	 * 
 	 * @returns Parameter vector.
 	 *
@@ -177,16 +245,21 @@ const vector<double> Colloid::getParameters() {
 	 */
 
 	if( !motif_assigned_ || !tile_assigned_ ) {
-		throw customException( "must assign colloid and tile before parameters" );
+		throw customException( "must assign assign tile and motif before getting parameters" );
 	}
 
 	params_.clear();
 
-	vector<double> dummy;
+	vector<double> dummy, rescaled;
 	dummy = m_.getParameters();
-	for ( size_t i=0; i < dummy.size(); ++i ) {
-		params_.push_back( dummy[ i ] );
+	for ( size_t i=0; i < 2; ++i ) {
+		params_.push_back( dummy[ i ] ); // Unscaled COM coordinates
 	}
+	rescaled = scale_coords_( params_ );
+
+	params_[0] = rescaled[0]; // scaled_com_x
+	params_[1] = rescaled[1]; // sclaed_com_y
+	params_.push_back(dummy[2]); // theta
 	
 	double tile_dummy[ tile_.numParameters() ];
 	tile_.getParameters( tile_dummy );
@@ -200,7 +273,8 @@ const vector<double> Colloid::getParameters() {
 	return params_;
 }
 
-void Colloid::setMotif( Motif m ) {
+void Colloid::setMotif( Motif m ) 
+{
 	/**
 	 * Assign the motif by copying an existing one.
 	 * 
@@ -214,7 +288,8 @@ void Colloid::setMotif( Motif m ) {
 	m_.copy( m ); // Create a copy - motif may not have been initialized yet
 }
 
-const Motif Colloid::getMotif() { 
+const Motif Colloid::getMotif() 
+{ 
 	/**
 	 * Retieve the colloid's motif.
 	 * 
@@ -230,7 +305,8 @@ const Motif Colloid::getMotif() {
 	}
 }
 
-void Colloid::setTile( IsohedralTiling t ) {
+void Colloid::setTile( IsohedralTiling t ) 
+{
 	/**
 	 * Assign the tile.
 	 * 
@@ -241,7 +317,8 @@ void Colloid::setTile( IsohedralTiling t ) {
 	tile_ = t; // Create a copy - already initialized at instantiation
 }
 
-const IsohedralTiling Colloid::getTile() { 
+const IsohedralTiling Colloid::getTile() 
+{ 
 	/**
 	 * Retieve the colloid's tile.
 	 * 
@@ -288,6 +365,38 @@ bool Colloid::isMotifInside( const int N=20 )
 	}
 
 	return true;
+}
+
+double Colloid::fractionMotifInside( const int N=20 )
+{
+	/**
+	 * Compute what fraction of the motif's points are inside the tile boundary.
+	 * 
+	 * The tile is discretized into points and treated as a polygon.
+	 * 
+	 * @param N Number of points to discretize each edge into.
+	 * 
+	 * @return double Number of points inside the tile.
+	 */
+
+	const double du = ( 1.0 - 0.0 )/N;
+	double outside = 0.0;
+
+	vector<int> boundary_ids;
+	vector<vector<double>> polygon;
+	vector<vector<double>> tile_control_points;
+
+	perimeter_( 0.0, du, N-1, tile_scale_, &boundary_ids, &polygon, &tile_control_points );
+
+	// Check each point in motif 
+	const vector<vector<double>> c = m_.getCoords();
+	for( size_t i=0; i < c.size(); ++i ) {
+		if ( !pip( polygon, c[ i ] ) ) {
+			outside += 1.0;
+		}
+	}
+
+	return 1.0 - outside/c.size();
 }
 
 double Colloid::tileArea()
@@ -543,6 +652,7 @@ void Colloid::initMotif_( double max_scale_factor=5.0, double min_scale_factor=0
 		throw( customException( "this tile type is not yet supported" ) );
 	}
 
+	const vector<double> p = getParameters(); // Compute internal parameter vector to keep this updated
 	return;
 }
 
