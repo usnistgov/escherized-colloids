@@ -55,12 +55,12 @@ You should also perform tests as described [here](https://optimlib.readthedocs.i
 
 Pre-commit
 ==========
-This repo uses pre-commit to manage style.  You will need to install [cpplint](https://pypi.org/project/cpplint/) and [cppcheck](https://cppcheck.sourceforge.io/) if you want to contribute.
+This repo uses pre-commit to manage style, as described [here](https://github.com/bmorcos/pre-commit-hooks-cpp).  You will need to install [cpplint](https://pypi.org/project/cpplint/) and [clang-format](https://clang.llvm.org/docs/ClangFormat.html) if you want to contribute.
 If you do not already have [pre-commit](https://pre-commit.com/) installed, you will need to do that as well.
 
 ~~~code
 $ pip install cpplint
-$ sudo apt-get install cppcheck
+$ sudo apt install clang-format
 ~~~
 
 Example
