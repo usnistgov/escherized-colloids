@@ -53,6 +53,15 @@ When compiling your code, add `#define OPTIM_ENABLE_ARMA_WRAPPERS` and `#include
 
 You should also perform tests as described [here](https://optimlib.readthedocs.io/en/latest/examples_and_tests.html).
 
+Pre-commit
+==========
+This repo uses pre-commit to manage style.  You will need to install [cpplint](https://pypi.org/project/cpplint/) and [cppcheck](https://cppcheck.sourceforge.io/) if you want to contribute.
+
+~~~code
+$ pip install cpplint
+$ sudo apt-get install cppcheck
+~~~
+
 Example
 =======
 ~~~code
