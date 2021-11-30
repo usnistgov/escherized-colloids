@@ -56,6 +56,7 @@ You should also perform tests as described [here](https://optimlib.readthedocs.i
 Pre-commit
 ==========
 This repo uses pre-commit to manage style.  You will need to install [cpplint](https://pypi.org/project/cpplint/) and [cppcheck](https://cppcheck.sourceforge.io/) if you want to contribute.
+If you do not already have [pre-commit](https://pre-commit.com/) installed, you will need to do that as well.
 
 ~~~code
 $ pip install cpplint

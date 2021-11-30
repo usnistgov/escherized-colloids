@@ -124,7 +124,7 @@ int main( int argc, char **argv )
 	try {
 		Colloid c(m, t, 0.3);
 		c.dump("colloid.json");
-		c.dumpXYZ("colloid.xyz");
+		c.dumpXYZ("colloid.xyz", false);
 	} catch ( const exception& e ) {
 		cout << e.what();
 		return 1;
