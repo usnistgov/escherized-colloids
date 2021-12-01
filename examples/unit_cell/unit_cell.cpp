@@ -29,6 +29,7 @@ static void show_usage(char *name)
               << "Options:\n"
               << "\t-h,--help\t\tShow this help message\n"
               << "\t-n,--number\t\tISOHEDRAL TILE\tSpecify the IH Tile number\n"
+	      << "\t-f,--filename\t\tFILENAME\tSpecify the file to write to\n"
 	      << "\t-m,--motif\t\tMOTIF\tJSON file with motif in it\n"
 	      << "\t-px,--px\tPARAMETERX\tSpecify tile parameter x"
               << std::endl;
@@ -43,7 +44,7 @@ int main( int argc, char **argv )
 	
 	int ih_number = -1, idx = -1;
 	map<int, float> p;
-	string pname = "-p", motif = "NONE";
+	string filename = "NONE", pname = "-p", motif = "NONE";
 
 	for ( int i=0; i < argc ; ++i ) {
 		string arg = argv[i];
@@ -73,6 +74,13 @@ int main( int argc, char **argv )
 			} else {
 				cerr << arg << " option requires one argument" << endl;
 				return 1;
+			}
+		} else if ( (arg == "-f") || (arg == "--filename") ) {
+			if ( i+1 < argc ) {
+				filename = string(argv[i+1]);
+			} else {
+				cerr << arg << " option requires one argument" << endl;
+                                return 1;
 			}
 		} else if ( "-p" == arg.substr(0, 2) ) {
 			int n = atoi( arg.substr(2, arg.length()).c_str() );
@@ -106,9 +114,8 @@ int main( int argc, char **argv )
 		} else {
 			params[i] = p[i];
 		}
-	}	
-	t.setParameters( params );
-
+	}
+	t.setParameters( params );	
 
 	// Load the motif
 	Motif m;
@@ -117,8 +124,12 @@ int main( int argc, char **argv )
 	// Build the colloid
 	try {
 		Colloid c(m, t, 0.3);
-		c.dump("colloid.json");
 		c.dumpXYZ("colloid.xyz", false);
+		
+		vector<vector<double>> c_, b_;
+                vector<string> t_;
+		c.unitCell(&c_, &t_, &b_, 2, 2);
+		dumpXYZ(c_, t_, "unit_cell.xyz");
 	} catch ( const exception& e ) {
 		cout << e.what();
 		return 1;

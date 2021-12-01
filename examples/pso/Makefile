@@ -14,7 +14,7 @@ TACTILE_CPPFLAGS = -I../../tactile/deps/glm -I../../tactile/src -g -Wall -std=c+
 LIBS = -L../../tactile/deps/glfw-3.2.1/build/src \
 	-framework OpenGL -framework IOKit -framework CoreVideo
 
-pso: pso.o colloid.o tiling.o motif.o
+pso: pso.o colloid.o tiling.o motif.o utils.o
 	$(CPP) -o $@ $^ 
 
 gl3w.o: ../../tactile/deps/gl3w/build/src/gl3w.c
@@ -28,6 +28,9 @@ motif.o: ../../src/motif.cpp
 
 colloid.o: ../../src/colloid.cpp ../../tactile/src/tiling.cpp
 	$(CPP) $(CPPFLAGS) ../../src/colloid.cpp -c -o $@
+
+utils.o: ../../src/utils.cpp
+        $(CPP) $(CPPFLAGS) ../../src/utils.cpp -c -o $@
 
 pso.o: pso.cpp 
 	$(CPP) $(CPPFLAGS) -march=native -ffp-contract=fast -I/usr/include/ -I../../optim/header_only_version $^ -c -o $@

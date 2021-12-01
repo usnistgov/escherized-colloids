@@ -5,6 +5,21 @@
 
 #include "colloid.hpp"
 
+double mod(double x, double v) {
+  /**
+   * Modulus operation for negative values and floating point numbers.
+   */
+  double y = x;
+  while (y < 0) {
+    y += v;
+  }
+  while (y > v) {
+    y -= v;
+  }
+
+  return y;
+}
+
 bool pip(const vector<vector<double>>& polygon, const vector<double>& point) {
   /**
    * Check if a point is inside a polygon.
@@ -972,4 +987,58 @@ void Colloid::dumpXYZ(const string filename, const bool full = false) {
   }
 
   return;
+}
+
+void Colloid::unitCell(vector<vector<double>>* coords, vector<string>* types,
+                       vector<vector<double>>* box, const int nx = 1,
+                       const int ny = 1) {
+  /**
+   * Make a unit cell (nx by ny) out of the motif. All particles are wrapped
+   * into the box. This is useful when checking the final symmetry of the
+   * system.
+   *
+   * @param[in] nx Number of copies to make in the "t1" direction.
+   * @param[in] ny Number of copies to make in the "t2" direction.
+   * @param[out] coords (x,y) coordinates of particles in unit cell.
+   * @param[out] types Chemical type of each particle.
+   * @param[out] box Box ( (v1.x, v1.y), (v2.x, v2.y) ) translation vectors.
+   */
+
+  if (!motif_assigned_ || !tile_assigned_) {
+    throw customException("must assign assign tile and motif first");
+  }
+  types->clear();
+  coords->clear();
+
+  // Get unit cell by combining the relevant "aspects"
+  const int n = tile_.numAspects();
+  vector<vector<double>> mc = m_.getCoords();
+  vector<string> mt = m_.getTypes();
+  glm::dvec2 t1 = tile_.getT1() * tile_scale_, t2 = tile_.getT2() * tile_scale_;
+  vector<dvec2> glm_coords;
+  for (int i = 0; i < n; ++i) {
+    dmat3 T = tile_.getAspectTransform(i);
+    vector<string> t = m_.getTypes();
+    for (size_t j = 0; j < mc.size(); ++j) {
+      dvec3 c = T * dvec3(mc[j][0], mc[j][1], 0.0);
+      glm_coords.push_back(c);
+    }
+  }
+
+  // Wrap and make copies by translating
+  dmat2 H = {t1, t2};
+  dmat2 H_T = transpose(H);
+  dmat2 H_T_inv = inverse(H_T);
+  for (int ix = 0; ix < nx; ++ix) {
+    for (int iy = 0; iy < ny; ++iy) {
+      for (size_t i = 0; i < glm_coords.size(); ++i) {
+        dvec2 a = glm_coords[i] * H_T_inv;
+        dvec2 x = dvec2(mod(a.x, 1.0), mod(a.y, 1.0)) * H_T;
+        vector<double> y = {x.x + ix * t1.x + iy * t2.x,
+                            x.y + ix * t1.y + iy * t2.y};
+        coords->push_back(y);
+        types->push_back(mt[i % mc.size()]);
+      }
+    }
+  }
 }

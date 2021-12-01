@@ -9,13 +9,16 @@
 #define SRC_UTILS_HPP_
 
 #include <exception>
+#include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
 
 using std::endl;
 using std::exception;
+using std::ofstream;
 using std::string;
+using std::vector;
 
 #define EXIT_FAILURE 1
 
@@ -29,7 +32,7 @@ class
     customException {  // Adapted from
                        // https://www.oreilly.com/library/view/c-cookbook/0596007612/ch09s02.html
  public:
-  explicit customException(const string& msg) : msg_(msg) {}
+  explicit customException(const string &msg) : msg_(msg) {}
   ~customException() {}
 
   string getMessage() const { return (msg_); }
@@ -37,5 +40,8 @@ class
  private:
   string msg_;
 };
+
+void dumpXYZ(const vector<vector<double>> &coords, const vector<string> &types,
+             const string filename);
 
 #endif  // SRC_UTILS_HPP_

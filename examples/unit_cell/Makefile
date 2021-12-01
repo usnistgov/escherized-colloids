@@ -12,7 +12,7 @@ TACTILE_CPPFLAGS = -I../../tactile/deps/glm -I../../tactile/src -g -Wall -std=c+
 LIBS = -L../../tactile/deps/glfw-3.2.1/build/src \
 	-framework OpenGL -framework IOKit -framework CoreVideo
 
-init: init.o colloid.o tiling.o motif.o utils.o
+unit_cell: unit_cell.o colloid.o tiling.o motif.o utils.o
 	$(CPP) -o $@ $^ 
 
 gl3w.o: ../../tactile/deps/gl3w/build/src/gl3w.c
@@ -28,10 +28,10 @@ colloid.o: ../../src/colloid.cpp ../../tactile/src/tiling.cpp
 	$(CPP) $(CPPFLAGS) ../../src/colloid.cpp -c -o $@
 
 utils.o: ../../src/utils.cpp
-        $(CPP) $(CPPFLAGS) ../../src/utils.cpp -c -o $@
+	$(CPP) $(CPPFLAGS) ../../src/utils.cpp -c -o $@
 
-init.o: init.cpp 
+unit_cell.o: unit_cell.cpp 
 	$(CPP) $(CPPFLAGS) $^ -c -o $@
 
 clean:
-	rm -f *.o init
+	rm -f *.o unit_cell

@@ -28,8 +28,12 @@
 #include "tiling.hpp"
 #include "utils.hpp"
 
+using glm::dmat2;
+using glm::dmat3;
 using glm::dvec2;
 using glm::dvec3;
+using glm::inverse;
+using glm::transpose;
 
 using std::ifstream;
 using std::map;
@@ -86,6 +90,9 @@ class Colloid {
 
   void setU0(const double u0) { edge_u0_ = u0; }
   void setDU(const double du) { edge_du_ = du; }
+
+  void unitCell(vector<vector<double>>* coords, vector<string>* types,
+                vector<vector<double>>* box, const int nx, const int ny);
 
  private:
   void defaults_();
