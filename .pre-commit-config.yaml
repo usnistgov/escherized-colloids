@@ -1,0 +1,11 @@
+repos:
+-   repo: https://github.com/bmorcos/pre-commit-hooks-cpp
+    rev: master
+    hooks:
+    -   id: cpplint
+        files: src/colloid.cpp|src/colloid.hpp|src/motif.cpp|src/motif.hpp|src/utils.hpp|!(src/json.hpp)
+-   repo: https://github.com/bmorcos/pre-commit-hooks-cpp
+    rev: master
+    hooks:
+    -   id: clang-format
+        files: src/colloid.cpp|src/colloid.hpp|src/motif.cpp|src/motif.hpp|src/utils.hpp|!(src/json.hpp)
