@@ -527,6 +527,61 @@ def prioritize(motif_point_symmetry):
     
     return safe, dangerous, stricly_forbidden
 
+def watch_out_for(ih_type, dangerous, motif_point_symmetry):
+    """
+    For "dangerous" cases, the motif has more symmetry than we are intentionally inducing.
+    The code will place the motif so it induces at least what is required by the tile's
+    properties (e.g., on a mirror line).  "Forbidden" supergroups are just groups that are
+    always strictly forbidden, but "dangerous" ones will probably work, though if the right
+    set of conditions (tile shape, etc.) are met you might actually end up having (some) of 
+    those extra symmetries in the motif end up being part of the pattern.
+    
+    Logic:
+    1. Start with the S(P1) you are targeting and would usually get.
+    2. That S(P1) should be treated as the MTPS of another pattern, S(P2), in which the 
+        induced group S(P2|M) is a supergroup (inclusive) of S(M). 
+    3.You cannot allow S(P2) to require induction of more symmetry than the motif has, since 
+        this is impossible for the motif provide. 
+    4. We must also require that S(P2|M) > S(P1|M), since we are considering the case where 
+        the motif has extra "unused" symmetries not exploited by the first pattern. Our
+        algorithm would have considered that pattern "safe" not "dangerous" in that case.
+    5. We should also remove any cases where the minimal forbidden supergroup is a subgroup 
+        of S(M) also.
+        
+    This will return rows in the table that tell you what symmetries you might end up with
+    instead of what you were hoping for.
+    """
+    df = dangerous.loc[[ih_type in x for x in dangerous[col_names[5]].values]]
+    target_group = df[col_names[1]].values[0] # Wallpaper group originally targeted
+    point_symm = df[col_names[2]].values[0] # The motif has more than this, otherwise it would have been considered "safe" by our algorithm
+    
+    def rename(values, group):
+        # 1. Remove any parenthases
+        new_v = []
+        for v in values:
+            new_v.append(v.split('(')[0])
+            
+        # 2. Explicitly rename isomorphic ones
+        for i in range(len(new_v)):
+            if new_v[i] == '*':
+                new_v[i] = group
+                
+        return new_v
+
+    possibilities = symmetry_table.loc[[target_group in rename(v,g) for g,v in symmetry_table[[col_names[1], col_names[3]]].values]]
+    
+    # Remove any possibilities that induce more/different than motif has to begin with
+    mask1 = np.array([x in [motif_point_symmetry] + get_subgroups(motif_point_symmetry) 
+                      for x in possibilities[col_names[2]]])
+    # Must induce MORE than the point_symm
+    mask2 = np.array([point_symm in get_subgroups(x) 
+                      for x in possibilities[col_names[2]]])
+    # Remove any forbidden cases
+    mask3 = np.array([x in [motif_point_symmetry] + get_subgroups(motif_point_symmetry) 
+                      for x in possibilities[col_names[4]]])
+    
+    return possibilities[mask1 & mask2 & ~mask3]
+
 if __name__ == "__main__":
 
     def sanity_checks(df):

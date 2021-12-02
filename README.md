@@ -87,3 +87,4 @@ To Do
 =====
 * Add unittests
 * Logic and coding for 47 non-FD tiles
+* DoF for 2 Bezier CP on edges
