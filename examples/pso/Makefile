@@ -30,7 +30,7 @@ colloid.o: ../../src/colloid.cpp ../../tactile/src/tiling.cpp
 	$(CPP) $(CPPFLAGS) ../../src/colloid.cpp -c -o $@
 
 utils.o: ../../src/utils.cpp
-        $(CPP) $(CPPFLAGS) ../../src/utils.cpp -c -o $@
+	$(CPP) $(CPPFLAGS) ../../src/utils.cpp -c -o $@
 
 pso.o: pso.cpp 
 	$(CPP) $(CPPFLAGS) -march=native -ffp-contract=fast -I/usr/include/ -I../../optim/header_only_version $^ -c -o $@

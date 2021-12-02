@@ -28,7 +28,7 @@ colloid.o: ../../src/colloid.cpp ../../tactile/src/tiling.cpp
 	$(CPP) $(CPPFLAGS) ../../src/colloid.cpp -c -o $@
 
 utils.o: ../../src/utils.cpp
-        $(CPP) $(CPPFLAGS) ../../src/utils.cpp -c -o $@
+	$(CPP) $(CPPFLAGS) ../../src/utils.cpp -c -o $@
 
 init.o: init.cpp 
 	$(CPP) $(CPPFLAGS) $^ -c -o $@
