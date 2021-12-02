@@ -53,6 +53,10 @@ When compiling your code, add `#define OPTIM_ENABLE_ARMA_WRAPPERS` and `#include
 
 You should also perform tests as described [here](https://optimlib.readthedocs.io/en/latest/examples_and_tests.html).
 
+pymatgen
+========
+Symmetry checks and manipulations are performed using [pymatgen](https://pymatgen.org/) in the `design` directory.  This package must be installed if you intend to use the tools therein.
+
 Pre-commit
 ==========
 This repo uses pre-commit to manage style, as described [here](https://github.com/bmorcos/pre-commit-hooks-cpp).  You will need to install [cpplint](https://pypi.org/project/cpplint/) and [clang-format](https://clang.llvm.org/docs/ClangFormat.html) if you want to contribute.
@@ -65,14 +69,21 @@ $ sudo apt install clang-format
 
 Example
 =======
+Some basic examples have been provided in the `examples/` directory.
+
 ~~~code
 $ cd examples/initialize_colloid/
 $ make
 $ bash run.sh # You can change parameters in this file as needed.
 ~~~
 
+How To
+======
+
+* Step 1: Build new motif or decide on one from `motif_libary`.  The Jupyter notebook in this directory illustrates how these are built and saved as JSON files.
+* Step 2: Design - in this directory you can indicate your desired motif, and select the tile desired.  Other information to guide your design may be found here.
+
 To Do
 =====
-1. Add code standardization
-2. Add unittests
-3. Logic and coding for 47 non-FD tiles
+* Add unittests
+* Logic and coding for 47 non-FD tiles
