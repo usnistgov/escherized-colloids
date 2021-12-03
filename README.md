@@ -1,4 +1,4 @@
-# escherized_colloids
+# Escherized Colloids
 
 Use isohedral tiles to decorate colloidal components.
 
@@ -21,13 +21,11 @@ For optimizations, we must install pagmo - see instructions below for details.
 Dependencies
 ------------
 
-Tactile
-=======
+### Tactile (required, included)
 This code relies on Prof. Craig Kaplan's [tactile](https://github.com/isohedral/tactile) library, which is cloned and shipped with this code.
 You can view an interactive version of this library [here](https://isohedral.ca/software/tactile/).
 
-JSON
-====
+### JSON (required, included)
 JSON support for c++ is provided by [here](https://github.com/nlohmann/json). The lone necessary json.hpp file is shipped with this code in
 src/, but can be updated from this repo. For example
 
@@ -35,8 +33,7 @@ src/, but can be updated from this repo. For example
 $ wget -O src/json.hpp https://github.com/nlohmann/json/releases/download/v3.10.4/json.hpp
 ~~~
 
-OptimLib
-========
+### OptimLib (required)
 Optimizations are performed using the [OptimLib](https://optimlib.readthedocs.io/en/latest/) library.
 
 ~~~code
@@ -53,12 +50,10 @@ When compiling your code, add `#define OPTIM_ENABLE_ARMA_WRAPPERS` and `#include
 
 You should also perform tests as described [here](https://optimlib.readthedocs.io/en/latest/examples_and_tests.html).
 
-pymatgen
-========
+### pymatgen (optional)
 Symmetry checks and manipulations are performed using [pymatgen](https://pymatgen.org/) in the `design` directory.  This package must be installed if you intend to use the tools therein.
 
-Pre-commit
-==========
+### pre-commit (optional)
 This repo uses pre-commit to manage style, as described [here](https://github.com/bmorcos/pre-commit-hooks-cpp).  You will need to install [cpplint](https://pypi.org/project/cpplint/) and [clang-format](https://clang.llvm.org/docs/ClangFormat.html) if you want to contribute.
 If you do not already have [pre-commit](https://pre-commit.com/) installed, you will need to do that as well.
 
@@ -67,9 +62,9 @@ $ pip install cpplint
 $ sudo apt install clang-format
 ~~~
 
-Example
-=======
-Some basic examples have been provided in the `examples/` directory.
+Examples
+========
+Some basic examples of using the code to perform some basic manipulations have been provided in the `examples/` directory. For example, initializing a colloid by placing a motif inside an isohedral tile, optimizing the tile to fit the motif (``shrinkwrapping''), and creating a unit cell out of motifs.
 
 ~~~code
 $ cd examples/initialize_colloid/
@@ -80,8 +75,14 @@ $ bash run.sh # You can change parameters in this file as needed.
 How To
 ======
 
-* Step 1: Build new motif or decide on one from `motif_libary`.  The Jupyter notebook in this directory illustrates how these are built and saved as JSON files.
-* Step 2: Design - in this directory you can indicate your desired motif, and select the tile desired.  Other information to guide your design may be found here.
+In the `design/` directory is a jupyter notebook (`Design.ipynb`) which walks the user through the design process.  Briefly, it consists of:
+
+* Step 1a: Build new motif or decide on one from `motif_libary`.  The Jupyter notebook in the `motif_library/` directory illustrates how these are built and saved as JSON files.
+* Step 1b: It can be a good idea to check the point symmetry you have assigned to your motif using pymatgen.  This optional step is illustrated in the Design.ipynb notebook.
+* Step 2: Given the motif's symmetry, determine which groups (tiles) are safe, dangerous, or forbidden.
+* Step 3: Select a tile, create a colloid (e.g., see `examples/initialize_colloid/`) by combining it with the chosen motif.
+* Step 4: Create a unit cell (2x2 or greater is usually best) to inspect the design for its symmetry.  If you made a ``safe`` choice, this should be what you wanted. If you
+made a ``dangerous`` choice, you should double check.
 
 To Do
 =====
