@@ -77,12 +77,12 @@ How To
 
 In the `design/` directory is a jupyter notebook (`Design.ipynb`) which walks the user through the design process.  Briefly, it consists of:
 
-* Step 1a: Build new motif or decide on one from `motif_libary`.  The Jupyter notebook in the `motif_library/` directory illustrates how these are built and saved as JSON files.
+* Step 1a: Build new motif or decide on one from the `motif_libary/`.  The Jupyter notebook in the `motif_library/` directory illustrates how these are built and saved as JSON files.
 * Step 1b: It can be a good idea to check the point symmetry you have assigned to your motif using pymatgen.  This optional step is illustrated in the Design.ipynb notebook.
 * Step 2: Given the motif's symmetry, determine which groups (tiles) are safe, dangerous, or forbidden.
 * Step 3: Select a tile, create a colloid (e.g., see `examples/initialize_colloid/`) by combining it with the chosen motif.
-* Step 4: Create a unit cell (2x2 or greater is usually best) to inspect the design for its symmetry.  If you made a ``safe`` choice, this should be what you wanted. If you
-made a ``dangerous`` choice, you should double check.
+* Step 4: Create a unit cell (2x2 or greater is usually best) to inspect the design for its symmetry.  If you made a **safe** choice, this should be what you wanted. If you
+made a **dangerous** choice, you should double check.
 
 To Do
 =====
