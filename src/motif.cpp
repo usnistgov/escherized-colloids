@@ -3,9 +3,9 @@
  * @author Nathan A. Mahynski
  */
 
-#include "motif.hpp"
+#include "src/motif.hpp"
 
-Motif::Motif() {}
+Motif::Motif() { symmetry_ = "NONE"; }
 
 Motif::~Motif() {}
 
@@ -29,6 +29,7 @@ void Motif::copy(Motif& other) {
   vector<double> p = other.getParameters();
   setCoords(other.getCoords(), p[2]);
   setTypes(other.getTypes());
+  setSymmetry(other.getSymmetry());
 }
 
 void Motif::loadXYZ(const string filename) {
@@ -115,7 +116,7 @@ void Motif::setCoords(const vector<vector<double>>& coords,
    *
    * The orientation provide is assumed to be an angle `theta` relative to
    * some fixed reference frame.  When the motif is rotated, it is rotated
-   * to some absolute value of theta (effectively from (0, 2*pi]).
+   * to some absolute value of theta (effectively from [0, 2*pi)).
    *
    * @param coords Matrix of (x,y) coordinates.
    * @param theta Absolute orientation to assume.
@@ -273,8 +274,37 @@ void Motif::load(const string filename) {
     vector<string> types = j["types"].get<vector<string>>();
     setCoords(coords, theta);
     setTypes(types);
-    symmetry_ = j["symmetry"].get<string>();
+    setSymmetry(j["symmetry"].get<string>());
   } catch (const exception& e) {
     throw(customException("unable to load Motif"));
   }
+}
+
+const int Motif::symmetrySuffix(const string prefix) {
+  /**
+   * Get the number after the symmetry prefix.
+   *
+   * For example, c6 returns 6.
+   * If requesting the suffix after "d" for a motif with "c"
+   * symmetry, 0 is returned, and vice versa. This essentially returns
+   * the order of the rotation group, or the number of mirrors planes
+   * for a reflection group (the order of dn is 2n not n).
+   *
+   * @param prefix Symmetry prefix (either "c" or "d").
+   *
+   * @returns
+   */
+
+  string s = symmetry_.substr(0, 1), x = prefix.substr(0, 1);
+  transform(x.begin(), x.begin()++, x.begin(), ::tolower);
+  transform(s.begin(), s.begin()++, s.begin(), ::tolower);
+
+  if ((x != "c") && (x != "d")) {
+    throw(customException("symmetry prefix unrecognized"));
+  }
+  if (s.compare(x) != 0) {
+    return 0;
+  }
+
+  return std::stoi(symmetry_.substr(1));
 }

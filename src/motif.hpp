@@ -10,6 +10,7 @@
 #ifndef SRC_MOTIF_HPP_
 #define SRC_MOTIF_HPP_
 
+#include <bits/stdc++.h>
 #include <algorithm>
 #include <cmath>
 #include <fstream>
@@ -18,8 +19,8 @@
 #include <string>
 #include <vector>
 
-#include "json.hpp"
-#include "utils.hpp"
+#include "src/json.hpp"
+#include "src/utils.hpp"
 
 using std::ifstream;
 using std::istringstream;
@@ -57,6 +58,10 @@ class Motif {
   void translate(const vector<double> &dx);
 
   void load(const string filename);
+
+  void setSymmetry(const string s) { symmetry_ = s; }
+  const string getSymmetry() { return symmetry_; }
+  const int symmetrySuffix(const string prefix);
 
  private:
   void computeCOM_();

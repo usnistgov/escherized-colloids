@@ -23,10 +23,10 @@
 #include <string>
 #include <vector>
 
-#include "json.hpp"
-#include "motif.hpp"
-#include "tiling.hpp"
-#include "utils.hpp"
+#include "src/json.hpp"
+#include "src/motif.hpp"
+#include "src/tiling.hpp"
+#include "src/utils.hpp"
 
 using glm::dmat2;
 using glm::dmat3;
@@ -58,11 +58,17 @@ class Colloid {
 
   vector<double> unscale_coords_(const vector<double>& scaled_coords);
   vector<double> scale_coords_(const vector<double>& unscaled_coords);
+  const vector<double> revise_(const vector<double>& p0,
+                               const vector<double>& p1,
+                               const vector<double>& orig_coords,
+                               const double current_theta, const string suffix,
+                               const int induced);
+
   void setParameters(const vector<double>& params);
   const vector<double> getParameters();
 
   void setMotif(Motif m);
-  const Motif getMotif();
+  Motif getMotif();
 
   void setTile(IsohedralTiling t);
   const IsohedralTiling getTile();
@@ -97,6 +103,7 @@ class Colloid {
  private:
   void defaults_();
   void buildBoundary_();
+  void constrain_(vector<double>* motif_params);
   void initMotif_(double max_scale_factor, double min_scale_factor,
                   int n_scale_incr, int N);
   void perimeter_(double u0, double du, int n, double scale,

@@ -46,7 +46,7 @@ double area_error2(const arma::vec& vals_inp, arma::vec* grad_out, void* opt_dat
 	 * so (area - target)**2 is the base function to minimize.  However, we need to penalize the 
 	 * sytem if the motif cannot be fully enclosed.  The more the motif is outside, the bigger
 	 * the penalty should be so a term that looks like ~f_out*penalty will monotonically increase
-	 * as the tile exludes more of the motif.  We should also consider that small changes to the
+	 * as the tile excludes more of the motif.  We should also consider that small changes to the
 	 * tile shape may not change the discrete number of points inside or outside the tile, yet
 	 * we want to bias the system to move toward expanding the tile if some parts of the motif
 	 * do not fit.  This is not always perfect, e.g., if the tile is plenty big but the motif is
@@ -54,7 +54,7 @@ double area_error2(const arma::vec& vals_inp, arma::vec* grad_out, void* opt_dat
 	 * help the system behave as we would like. This is mostly important when using gradient-
 	 * based optimization approaches, which PSO doesn't use. Still, it is nice to have this so
 	 * performance can be compared to optimization routines which do use derivatives. Note that
-	 * f_out is outside the parenthases because if it is 0, no additional penalty should be 
+	 * f_out is outside the parentheses because if it is 0, no additional penalty should be 
 	 * applied. Note that tile area is usually on the order of unity for motifs in the included
 	 * library, but penalty should be chosen to be commensurate with it.
 	 */

@@ -8,6 +8,7 @@
 #ifndef SRC_UTILS_HPP_
 #define SRC_UTILS_HPP_
 
+#include <cmath>
 #include <exception>
 #include <fstream>
 #include <iostream>
@@ -32,7 +33,7 @@ class
     customException {  // Adapted from
                        // https://www.oreilly.com/library/view/c-cookbook/0596007612/ch09s02.html
  public:
-  explicit customException(const string &msg) : msg_(msg) {}
+  explicit customException(const string& msg) : msg_(msg) {}
   ~customException() {}
 
   string getMessage() const { return (msg_); }
@@ -41,7 +42,16 @@ class
   string msg_;
 };
 
-void dumpXYZ(const vector<vector<double>> &coords, const vector<string> &types,
+void dumpXYZ(const vector<vector<double>>& coords, const vector<string>& types,
              const string filename);
+
+vector<double> project_to_line(const vector<double>& p0,
+                               const vector<double>& p1,
+                               const vector<double>& coords);
+
+const double tile_mirror_alignment(const vector<double>& p0,
+                                   const vector<double>& p1);
+
+double thetaBounds(const double theta);
 
 #endif  // SRC_UTILS_HPP_

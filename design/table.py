@@ -18,7 +18,7 @@ def get_subgroups(group):
     elif (group.startswith("d")): # Dihedral group of order 2n (dn) 
         if group.endswith("_inf"): # d_inf = group of isotropic circle
             # Contains c_inf and other c, also d
-            # However, for the purposes of this code, we can just return all the 
+            # However, for the purposes of this code, we can just return all the (minimal)
             # groups found in the table, which should suffice for all logic needed.
             return ['c1', 'c2', 'c3', 'c4', 'c6', 'd1', 'd2', 'd3', 'd4', 'd6']
         else:
