@@ -23,10 +23,10 @@
 #include <string>
 #include <vector>
 
-#include "src/json.hpp"
-#include "src/motif.hpp"
-#include "src/tiling.hpp"
-#include "src/utils.hpp"
+#include "json.hpp"
+#include "motif.hpp"
+#include "tiling.hpp"
+#include "utils.hpp"
 
 using glm::dmat2;
 using glm::dmat3;

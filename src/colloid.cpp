@@ -3,7 +3,7 @@
  * @author Nathan A. Mahynski
  */
 
-#include "src/colloid.hpp"
+#include "/colloid.hpp"
 
 double mod(double x, double v) {
   /**
@@ -143,7 +143,7 @@ void Colloid::defaults_() {
   tile_assigned_ = false;
   motif_assigned_ = false;
   built_ = false;
-  tile_scale_ = 1.0;
+  setTileScale(1.0);
   setU0(0.0);
   sphere_deform_ = 0.25;
   setDU(0.1);
@@ -231,6 +231,11 @@ void Colloid::setParameters(const vector<double>& params) {
         "must assign tile and motif before setting new parameters");
   }
 
+  if (params.size() != (3 + tile_.numParameters() + 2)) {
+    throw customException(
+        "incorrect number of parameters provided");
+  }
+
   // Tile
   double tile_params[tile_.numParameters()];
   for (int i = 3; i < tile_.numParameters() + 3; ++i) {
@@ -239,7 +244,7 @@ void Colloid::setParameters(const vector<double>& params) {
   tile_.setParameters(tile_params);
 
   setU0(params[3 + tile_.numParameters()]);
-  tile_scale_ = params[3 + tile_.numParameters() + 1];
+  setTileScale(params[3 + tile_.numParameters() + 1]);
 
   // Build boundary (need updated tile_control_points_) before computing scaled
   // coordinates
@@ -322,7 +327,7 @@ const vector<double> Colloid::revise_(const vector<double>& p0,
   vector<double> unscaled_coords(2, 0), scaled_coords(2, 0);
   double absolute_theta = 0.0;
 
-  if (suffix.compare("d") != 0) {
+  if (suffix.compare("d") == 0) {
     // 1. Put motif COM on mirror lines
     if (induced == 1) {
       // If only 1 mirror line we have a DoF in terms of where on that line.
@@ -330,6 +335,7 @@ const vector<double> Colloid::revise_(const vector<double>& p0,
       scaled_coords = scale_coords_(unscaled_coords);
     } else {
       // With multiple mirrors, their intersection defines the COM of the motif
+      throw customException("not implemented");
     }
 
     // 2. Round orientation to nearest allowable absolute theta value
@@ -360,6 +366,8 @@ const vector<double> Colloid::revise_(const vector<double>& p0,
     }
     absolute_theta = best_angle + tile_mirror_alignment(p0, p1);
   } else {
+    throw customException("not implemented");
+
     // 1. Assign motif COM to rotation center
 
     // 2. No rotation is required
@@ -657,7 +665,7 @@ void Colloid::perimeter_(double u0, double du, int n, double scale,
   // Iterate over the edges of a single tile, asking the tiling to
   // tell you about the geometric information needed to transform
   // the edge shapes into position.  Note that this iteration is over
-  // whole tiling edges.  It's also to iterator over partial edges
+  // whole tiling edges.  It's also possible to iterator over partial edges
   // (i.e., halves of U and S edges) using t.parts() instead of t.shape().
   vector<int> identity;
   int total_edges = 0;
@@ -803,7 +811,7 @@ void Colloid::initMotif_(double max_scale_factor = 5.0,
           m_.translate(dd);
 
           // Save last good scale
-          tile_scale_ = last_scale;
+          setTileScale(last_scale);
           found = true;
           break;
         }
@@ -968,7 +976,7 @@ void Colloid::load(const string filename) {
     try {
       edge_du_ = j["Properties"]["edge_du"].get<double>();
       edge_u0_ = j["Properties"]["edge_u0"].get<double>();
-      tile_scale_ = j["Properties"]["tile_scale"].get<double>();
+      setTileScale(j["Properties"]["tile_scale"].get<double>());
       sphere_deform_ = j["Properties"]["sphere_deform"].get<double>();
       boundary_ids_ = j["Properties"]["boundary_ids"].get<vector<int>>();
       boundary_coords_ =

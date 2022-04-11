@@ -11,12 +11,12 @@ Getting Started
 ~~~code
 $ git clone mahynski/escherized_colloids
 $ cd escherized_colloids
-$ git clone https://github.com/isohedral/tactile
+<!--$ git clone https://github.com/isohedral/tactile-->
+$ # Perform required installations, see below
+$ # Perform optional installations, see below
 $ cd tactile; git checkout 33d5b03 # This is the one used during development
 $ cd ../;
 ~~~
-
-For optimizations, we must install pagmo - see instructions below for details.
 
 Dependencies
 ------------
@@ -50,12 +50,31 @@ When compiling your code, add `#define OPTIM_ENABLE_ARMA_WRAPPERS` and `#include
 
 You should also perform tests as described [here](https://optimlib.readthedocs.io/en/latest/examples_and_tests.html).
 
+### GoogleTest (optional)
+If you want to run tests to check the code (recommended) you need to install [GoogleTest](https://github.com/google/googletest).  This installation procedure also requires [CMake](http://www.cmake.org/) and superuser privileges.
+
+~~~code
+$ git clone https://github.com/google/googletest.git
+$ cd googletest
+$ mkdir build
+$ cd build
+$ cmake ..
+$ make
+$ sudo make install
+~~~
+
+Once installed, you can automatically execute all tests as follows.
+
+~~~code
+$ cd tests
+$ bash auto.sh
+~~~
+
 ### pymatgen (optional)
 Symmetry checks and manipulations are performed using [pymatgen](https://pymatgen.org/) in the `design` directory.  This package must be installed if you intend to use the tools therein.
 
 ### pre-commit (optional)
-This repo uses pre-commit to manage style, as described [here](https://github.com/bmorcos/pre-commit-hooks-cpp).  You will need to install [cpplint](https://pypi.org/project/cpplint/) and [clang-format](https://clang.llvm.org/docs/ClangFormat.html) if you want to contribute.
-If you do not already have [pre-commit](https://pre-commit.com/) installed, you will need to do that as well.
+This repo uses pre-commit to manage style, as described [here](https://github.com/bmorcos/pre-commit-hooks-cpp).  You will need to install [cpplint](https://pypi.org/project/cpplint/) and [clang-format](https://clang.llvm.org/docs/ClangFormat.html) if you want to contribute. If you do not already have [pre-commit](https://pre-commit.com/) installed, you will need to do that as well.
 
 ~~~code
 $ pip install cpplint
@@ -86,6 +105,5 @@ made a **dangerous** choice, you should double check.
 
 To Do
 =====
-* Add unittests
 * Logic and coding for 47 non-FD tiles
 * DoF for 2 Bezier CP on edges

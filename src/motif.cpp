@@ -3,7 +3,7 @@
  * @author Nathan A. Mahynski
  */
 
-#include "src/motif.hpp"
+#include "/motif.hpp"
 
 Motif::Motif() { symmetry_ = "NONE"; }
 
