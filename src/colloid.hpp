@@ -137,4 +137,8 @@ class Colloid {
   Motif m_;               // The colloid's motif.
 };
 
+vector<int> unique_(const vector<dvec2>& shape, const vector<int>& idx, const double eps=1.0e-12);
+
+void new_idx_(const vector<dvec2>& shape, vector<int>& last_edge, vector<int>& curr_edge, unsigned int& ov_, unsigned int& new_, const double eps=1.0e-12);
+
 #endif  // SRC_COLLOID_HPP_

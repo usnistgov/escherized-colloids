@@ -288,13 +288,13 @@ void Colloid::constrain_(vector<double>* motif_params) {
     prefix = "d";
     induced = 1;  // S(P|M) = d1
 
-    p0[0] = (tile_control_points_[1][0] - tile_control_points_[2][0]) / 2.0 +
-            tile_control_points_[2][0];
-    p0[1] = (tile_control_points_[1][1] + tile_control_points_[2][1]) / 2.0;
+    p0[0] = (tile_control_points_[1][0] - tile_control_points_[0][0]) / 2.0 +
+            tile_control_points_[0][0];
+    p0[1] = (tile_control_points_[1][1] + tile_control_points_[0][1]) / 2.0;
 
-    p1[0] = (tile_control_points_[0][0] - tile_control_points_[3][0]) / 2.0 +
-            tile_control_points_[3][0];
-    p1[1] = (tile_control_points_[0][1] + tile_control_points_[3][1]) / 2.0;
+    p1[0] = (tile_control_points_[3][0] - tile_control_points_[2][0]) / 2.0 +
+            tile_control_points_[2][0];
+    p1[1] = (tile_control_points_[3][1] + tile_control_points_[2][1]) / 2.0;
   } else {
     throw(customException("unrecognized tile type"));
   }
@@ -636,53 +636,39 @@ void Colloid::perimeter_(double u0, double du, int n, double scale,
    * Compute points along the tile's perimeter.
    *
    * A Bezier curve defines each edge on the tile, following the Tactile
-   * library. The curve's control points are adjusted to be consistent with
-   * symmetry. Each edge assumed to be "impacted" by a sphere to create a
+   * library. Each edge assumed to be "impacted" by a sphere to create a
    * curvature of a single sign along its edge. The identities of each
-   * symmetrically unique point along the bounday are identified in ascending
+   * symmetrically unique point along the boundary are identified in ascending
    * order, without gap. 0 is used for stop codons, positive integers for
-   * interacting points.
+   * interacting points, -1 is used for control points at the ends of Bezier 
+   * curves.
    *
    * @param[in] u0 Starting point for boundary points along Bezier curve. Should
    * be in (0,1).
    * @param[in] du Gap along Bezier curve between boundary points. Should be
    * < 1.
-   * @param[in] n Number of points to place along each edge.
+   * @param[in] n Total number of points to place along each edge (incl. stop codons).
    * @param[in] scale The default Tactile tile is isotropically scaled by this
    * factor.
    * @param[out] boundary_ids Chemical identities (integers > 0) of boundary
-   * points.
+   * points.  These are listed in ascending order from 1 up, without gap.
    * @param[out] boundary_coords Coordinates of points on tile's boundary.
-   * @param[out] tile_control_points Control points on Bezier curves defining
-   * edges.
+   * @param[out] tile_control_points Control points from the ends of Bezier curves 
+   * defining the edges. 
    */
 
+  // Put points on perimeter (this returns stop codons AND control points)
   vector<vector<dvec2>> edges = perimeter_edges_(u0, du, n, scale);
-
-  // Use a vector to hold the control points of the final tile outline.
-  vector<dvec2> shape;
 
   // Iterate over the edges of a single tile, asking the tiling to
   // tell you about the geometric information needed to transform
   // the edge shapes into position.  Note that this iteration is over
-  // whole tiling edges.  It's also possible to iterator over partial edges
-  // (i.e., halves of U and S edges) using t.parts() instead of t.shape().
-  vector<int> identity;
-  int total_edges = 0;
-  for (auto i : tile_.shape()) {
-    // 1 + 4 colors + 1 stop codon
-    vector<int> pattern = {0,
-                           i->getId() * 4 + 1,
-                           i->getId() * 4 + 2,
-                           i->getId() * 4 + 3,
-                           i->getId() * 4 + 4,
-                           0};  // 0 for stop codons
-
-    // Interacting points on U and S edges are centro-symmetrically labelled
-    if (i->getShape() == 1 || i->getShape() == 2) {
-      pattern[3] = pattern[2];
-      pattern[4] = pattern[1];
-    }
+  // tiling "parts" which goes over entire edges for I and J, and each "half"
+  // for S and U.
+  vector<int> identity, cp_idx;
+  vector<dvec2> shape;
+  for (auto i : tile_.parts()) {
+    vector<int> pattern; // e.g., [-1, 0, {1, 2, 3, ...}, 0, -1] where -1 = CP, 0 = SC
 
     // Get the relevant edge shape created above using i->getId().
     const vector<dvec2> ed = edges[i->getId()];
@@ -691,30 +677,100 @@ void Colloid::perimeter_(double u0, double du, int n, double scale,
     // tiling vertices.
     const glm::dmat3& T = i->getTransform();
 
+    // Interacting points on U and S edges are centro-symmetrically labelled
+    if (i->getShape() == 1 || i->getShape() == 2) {
+      // Only put a stop codon at the end and made half an edge
+      const int half_size = (n-2)/2+1; // Round down if needed
+      pattern.resize(half_size, 0);
+
+      // Stop codons are type 0
+      pattern[half_size-1] = 0;
+
+      for (int j=1; j < half_size; ++j) {
+        pattern[j-1] = i->getId() * (n-2) + j; // n-2 non-STOP codons
+      }
+    } else {
+      pattern.resize(n, 0);
+
+      // Stop codons are type 0
+      pattern[0] = 0;
+      pattern[n-1] = 0;
+
+      for (int j=1; j < n-1; ++j) {
+        pattern[j] = i->getId() * (n-2) + j; // n-2 non-STOP codons
+      }
+    }
+
     // If i->isReversed() is true, we need to run the parameterization
     // of the path backwards.
     if (i->isReversed()) {
-      for (size_t idx = 1; idx < ed.size(); ++idx) {
+      identity.push_back(-1);  // -1 for control points
+      cp_idx.push_back(identity.size()-1);
+      for (size_t idx = 0; idx < ed.size(); ++idx) { // 1
         shape.push_back(T * dvec3(ed[ed.size() - 1 - idx], 1.0 * scale));
       }
       for (size_t idx = 0; idx < pattern.size(); ++idx) {
         identity.push_back(pattern[pattern.size() - 1 - idx]);
       }
       identity.push_back(-1);  // -1 for control points
+      cp_idx.push_back(identity.size()-1);
     } else {
-      for (size_t idx = 1; idx < ed.size(); ++idx) {
+      identity.push_back(-1);  // -1 for control points
+      cp_idx.push_back(identity.size()-1);
+      for (size_t idx = 0; idx < ed.size(); ++idx) { // 1
         shape.push_back(T * dvec3(ed[idx], 1.0 * scale));
       }
       for (size_t idx = 0; idx < pattern.size(); ++idx) {
         identity.push_back(pattern[idx]);
       }
       identity.push_back(-1);  // -1 for control points
+      cp_idx.push_back(identity.size()-1);
     }
-
-    total_edges += 1;
   }
 
-  // Count any gaps in the identities from S and U edges
+  // Tactile does not seem to provide an orientation-consistent method of
+  // figuring out the ends of the Bezier curves naturally; the edges are
+  // traversed in this order, though, so we can use this to infer the
+  // order of the points.
+
+  // Get control points at the "ends" of edges in counterclockwise order
+  int iter = 0, edge_idx = 0;
+  vector<vector<int>> cp_edges;
+  for (auto i : tile_.parts()) {  // Iterator goes in counterclockwise edge order from Tactile
+    vector<int> edges;
+    if (i->getShape() == 1 || i->getShape() == 2) { // S or U edge
+      if ((static_cast<int>(i->getId()) == edge_idx) && (iter > 0)) { // Should be the same as i->isSecondPart()?
+        vector<int> idx = {cp_idx[iter-2], cp_idx[iter-1], cp_idx[iter], cp_idx[iter+1]};
+        edges = unique_(shape, idx); // "Delete" the overlapping set of 2 to get edges
+        assert(edges.size() == 2);
+        cp_edges.push_back(edges); // Save the outer 2 points
+      }
+    } else { // J or I edge
+      edges = {cp_idx[iter], cp_idx[iter+1]};
+      cp_edges.push_back(edges); // Save the outer 2 points
+    }
+    edge_idx = static_cast<int>(i->getId());
+    iter += 2;
+  }
+
+  // Traverse in counterclockwise order
+  dvec2 starting_point(0.0, 0.0);
+  tile_control_points->clear();
+  for (unsigned int i=0; i < cp_edges.size(); ++i) {
+    if (i > 0) { // From the second edge onward...
+      vector<int> last_edge = cp_edges[i-1], curr_edge = cp_edges[i];
+
+      unsigned int ov_ = 0, new_ = 0;
+      new_idx_(shape, last_edge, curr_edge, ov_, new_);
+      tile_control_points->push_back({shape[curr_edge[new_]].x, shape[curr_edge[new_]].y}); // next CP in CC order
+      if (i == 1) {
+        starting_point = shape[curr_edge[ov_]]; // One that is duplicated one this iteration is the starting point you end up returning to
+      }
+    }
+  }
+  tile_control_points->push_back({starting_point.x, starting_point.y});
+
+  // Count any gaps in the identities from S and U edges so identities are contiguous
   map<int, int> adjust;
   int ctr = 0;
   for (int i = 0; i <= *max_element(identity.begin(), identity.end()); ++i) {
@@ -727,7 +783,6 @@ void Colloid::perimeter_(double u0, double du, int n, double scale,
 
   boundary_ids->clear();
   boundary_coords->clear();
-  tile_control_points->clear();
 
   int skip = 0;
   for (size_t j = 0; j < shape.size(); ++j) {
@@ -745,11 +800,50 @@ void Colloid::perimeter_(double u0, double du, int n, double scale,
         boundary_coords->push_back(c);
         boundary_ids->push_back(identity[j] - adjust[identity[j]]);
       }
-    } else {
-      // Save control points to compute area, etc.
-      tile_control_points->push_back(c);
     }
   }
+}
+
+vector<int> unique_(const vector<dvec2>& shape, const vector<int>& idx, const double eps) {
+  /**
+   * Find indices of points which are unique.
+   */
+  vector<int> u;
+  for (unsigned int i=0; i < idx.size(); ++i) {
+    u.push_back(idx[i]);
+    for (unsigned int j=0; j < idx.size(); ++j) {
+      if (i != j) {
+        double d2 = pow(shape[idx[i]].x - shape[idx[j]].x, 2) + pow(shape[idx[i]].y - shape[idx[j]].y, 2);
+        if (d2 < eps) {
+          u.pop_back();
+          break;
+        }
+      }
+    }
+  }
+
+  return u;
+}
+
+void new_idx_(const vector<dvec2>& shape, vector<int>& last_edge, vector<int>& curr_edge, unsigned int& ov_, unsigned int& new_, const double eps) {
+  /**
+   * Compare end points of 2 consecutive edges (in counterclockwise order) to determine the
+   * "leading" point, and the point the 2 edges share.
+   */
+  assert(last_edge.size() == 2);
+  assert(curr_edge.size() == 2);
+
+  for (unsigned int i=0; i < 2; ++i) {
+    for (unsigned int j=0; j < 2; ++j) {
+      const double d2 = pow(shape[curr_edge[i]].x - shape[last_edge[j]].x, 2) + pow(shape[curr_edge[i]].y - shape[last_edge[j]].y, 2);
+      if (d2 < eps) {
+        ov_ = i; // i overlaps one from last_edge
+        new_ = (i+1)%2; // The other one is the new one
+        return;
+      }
+    }
+  }
+  throw customException("unable to find overlapping point");
 }
 
 void Colloid::initMotif_(double max_scale_factor = 5.0,
@@ -858,19 +952,23 @@ vector<vector<dvec2>> Colloid::perimeter_edges_(double u0, double du, int n,
   /**
    * Create the Bezier curves that will serve as tile edges.
    *
-   * These curves are generally from (0,0) to (1,0) with some curvature between
+   * These curves canonically go from (0,0) to (1,0) with some curvature between
    * them, and are uniformly scaled.  They will be rotated into place later on
    * by the Tactile library.
    *
    * @param u0 Starting point for boundary points along Bezier curve. Should be
-   * in (0,1).
+   * in (0,1). S and U edges start from their center and essentially ignore this.
    * @param du Gap along Bezier curve between boundary points. Should be < 1.
-   * @param n Number of points to place along each edge.
+   * @param n Total number of points to place along each a completed edge. Note 
+   * that U and S edges are cut in "half" and n refers to the total edge, so we
+   * generate only one half of these points here.
    * @param scale The default Tactile tile is isotropically scaled by this
    * factor.
    *
    * @returns Discretized points along each edge, including Bezier control
-   * points at the ends.
+   * points at the ends. For S and U: [CP_left, c1, c2, ..., c_((n-2)/2+1)=STOP, 
+   * CP_right], while for I and J: [CP_left, c1=STOP, c2, ..., c_n=STOP, 
+   * CP_right]. Points ascend from CP_left to CP_right.
    */
 
   // Create a vector to hold some edge shapes.  The tiling tells you
@@ -881,6 +979,14 @@ vector<vector<dvec2>> Colloid::perimeter_edges_(double u0, double du, int n,
   // the outline of a tile.  All the curves below have exactly four
   // control points.
   vector<vector<dvec2>> edges;
+
+  double u0_, du_;
+  int n_;
+
+  assert(n > 0);
+
+  // Canonical Tactile coordinates
+  dvec2 cp_left(0.0, 0.0), cp_right(1.0 * scale, 0.0), dummy;
 
   // Generate edge shapes.
   for (U8 idx = 0; idx < tile_.numEdgeShapes(); ++idx) {
@@ -898,30 +1004,52 @@ vector<vector<dvec2>> Colloid::perimeter_edges_(double u0, double du, int n,
     // constraints on edges.
     switch (tile_.getEdgeShape(idx)) {
       case J:
+        u0_ = u0;
+        du_ = du;
+        n_ = n;
         break;
-      case U:
-        ej[2].x = 1.0 * scale - ej[1].x;
-        ej[2].y = ej[1].y;
+      case U: // double dU since edge is half the size
+        du_ = -2.0*du; // Walk "away" from midpoint
+        u0_ = 1.0+du_/2.0; // Start U from x=1 = midpoint and walk away
+        assert(n >= 2);
+        n_ = (n-2)/2+1; // Only put 1 stop codon at the end
+
+        // Reverse CP order
+        dummy = cp_left;
+        cp_left = cp_right;
+        cp_right = dummy;
         break;
-      case S:
-        ej[2].x = 1.0 * scale - ej[1].x;
-        ej[2].y = -ej[1].y;
+      case S: // double dU since edge is half the size
+        du_ = -2.0*du; // Walk "away" from midpoint
+        u0_ = 1.0+du_/2.0; // Start S from x=1 = midpoint and walk away
+        assert(n >= 2);
+        n_ = (n-2)/2+1; // Only put 1 stop codon at the end
+
+        // Reverse CP order
+        dummy = cp_left;
+        cp_left = cp_right;
+        cp_right = dummy;
         break;
       case I:
         ej[1].y = 0.0;
         ej[2].y = 0.0;
+        u0_ = u0;
+        du_ = du;
+        n_ = n;
         break;
     }
 
-    // From Bezier curve determine location of 1+4+1 points along the
-    // deformed edge. Here, i'll assume the stop codon is in contact
-    // with the other 4. Later we will decide which stop codon to drop.
+    // From Bezier curve determine location of points along the
+    // deformed edge. Here, i'll assume the stop codons are in contact
+    // with the other ones. Later we will decide which stop codon to drop.
+    // For S and U (halves), only put ~n/2 points and start from 1-du/2 instead of 0+u0.
+    // These edges have only one stop codon placed at the end.
     vector<dvec2> coords;
-    coords.push_back(dvec2(0.0, 0.0));
-    for (int k = 0; k < n; ++k) {
-      coords.push_back(bezier(ej[0], ej[1], ej[2], ej[3], u0 + k * du));
+    coords.push_back(cp_left);
+    for (int k = 0; k < n_; ++k) {
+      coords.push_back(bezier(ej[0], ej[1], ej[2], ej[3], u0_ + k * du_));
     }
-    coords.push_back(dvec2(1.0 * scale, 0));
+    coords.push_back(cp_right);
 
     edges.push_back(coords);
   }
