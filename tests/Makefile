@@ -6,7 +6,7 @@ INCLUDES = -I../tactile/deps/glm \
 CC = gcc 
 CPP = g++
 CFLAGS = $(INCLUDES) -I../tactile/src -g -Wall 
-CPPFLAGS = $(INCLUDES) -I../tactile/src -I../src/ -g -Wall -std=c++11 
+CPPFLAGS = $(INCLUDES) -I../tactile/src -I../ -g -Wall -std=c++11 
 TACTILE_CPPFLAGS = -I../tactile/deps/glm -I../tactile/src -g -Wall -std=c++11
 
 LIBS = -L../tactile/deps/glfw-3.2.1/build/src \

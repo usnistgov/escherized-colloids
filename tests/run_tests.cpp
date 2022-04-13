@@ -3,6 +3,7 @@
 #include "test_mirror.hpp"
 #include "test_projection.hpp"
 #include "test_theta.hpp"
+#include "test_fdtiles.hpp"
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest( &argc, argv );

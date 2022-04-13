@@ -34,4 +34,4 @@ fd.o: fd.cpp
 	$(CPP) $(CPPFLAGS) $^ -c -o $@
 
 clean:
-	rm -f *.o fd colloid*.xyz
+	rm -f *.o fd colloid*.xyz colloid*.json

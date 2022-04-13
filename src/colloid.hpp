@@ -77,7 +77,7 @@ class Colloid {
   void setTileScale(const double s) {
     tile_scale_ = s;
   }  // Assign the tile_scale_.
-  double getTileScale() { return tile_scale_; }
+  double getTileScale() const { return tile_scale_; }
   double tileArea();
 
   bool isMotifInside(const int N);
@@ -96,6 +96,10 @@ class Colloid {
 
   void unitCell(vector<vector<double>>* coords, vector<string>* types,
                 vector<vector<double>>* box, const int nx, const int ny);
+
+  vector<vector<double>> getBoundaryCoords() const { return boundary_coords_; }
+  vector<int> getBoundaryIds() const { return boundary_ids_; }
+  vector<vector<double>> getTileControlPoints() const { return tile_control_points_; }
 
  private:
   void defaults_();

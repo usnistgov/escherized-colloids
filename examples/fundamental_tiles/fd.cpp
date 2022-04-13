@@ -35,9 +35,11 @@ int main( int argc, char **argv )
 					
 					// Create tile
 					Colloid c(m, t, 0.25);
-					stringstream ss;
+					stringstream ss, tt;
 					ss << "colloid_" << int(ih_type) << ".xyz";
 					c.dumpXYZ(ss.str(), true);
+					tt << "colloid_" << int(ih_type) << ".json";
+					c.dump(tt.str());
 				} catch (customException &e) {
 					std::cout << "Error for tile type " << int(ih_type) << " : " << e.getMessage() << std::endl;
 					

@@ -60,7 +60,7 @@ class Motif {
   void load(const string filename);
 
   void setSymmetry(const string s) { symmetry_ = s; }
-  const string getSymmetry() { return symmetry_; }
+  const string getSymmetry() const { return symmetry_; }
   const int symmetrySuffix(const string prefix);
 
  private:

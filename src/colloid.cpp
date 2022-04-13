@@ -132,14 +132,14 @@ Colloid::Colloid(Motif m, IsohedralTiling t, double tile_u0, bool debug)
 
   setMotif(m);
   setTile(t);
-  init(debug);  // This will find a good value for tile_scale_
+  init(debug); // This will find a good value for tile_scale_
 }
 
 void Colloid::init(bool debug) {
   buildBoundary_();
   initMotif_(10.0, 0.1, 1000, 20, debug);
   built_ = true;
-}  // Initialize the colloid.
+} // Initialize the colloid.
 
 void Colloid::defaults_() {
   /**
@@ -419,10 +419,10 @@ const vector<double> Colloid::getParameters() {
   rescaled = scale_coords_(params_);
   params_[0] = rescaled[0];  // scaled_com_x
   params_[1] = rescaled[1];  // scaled_com_y
-
   params_.push_back(dummy[2]);  // theta
 
   double tile_dummy[tile_.numParameters()];
+
   tile_.getParameters(tile_dummy);
   for (size_t i = 0; i < tile_.numParameters(); ++i) {
     params_.push_back(tile_dummy[i]);
@@ -1092,6 +1092,7 @@ void Colloid::load(const string filename) {
       m.setParameters(
           j["Motif"]["parameters"]
               .get<vector<double>>());  // Unnecessary, but for good measure
+      m.setSymmetry(j["Motif"]["symmetry"].get<string>());
       setMotif(m);
     } catch (const exception& e) {
       throw(customException("unable to load Motif"));
@@ -1102,8 +1103,8 @@ void Colloid::load(const string filename) {
     try {
       IsohedralTiling t(j["Tile"]["ih_type"].get<int>());
       vector<double> p = j["Tile"]["parameters"].get<vector<double>>();
-      double params[tile_.numParameters()];
-      for (int i = 0; i < tile_.numParameters(); ++i) {
+      double params[t.numParameters()];
+      for (int i = 0; i < t.numParameters(); ++i) {
         params[i] = p[i];
       }
       t.setParameters(params);
@@ -1147,7 +1148,8 @@ void Colloid::dump(const string filename) {
     if (motif_assigned_) {
       j["Motif"] = {{"coords", m_.getCoords()},
                     {"types", m_.getTypes()},
-                    {"parameters", m_.getParameters()}};
+                    {"parameters", m_.getParameters()},
+                    {"symmetry", m_.getSymmetry()}};
     }
 
     if (tile_assigned_) {
