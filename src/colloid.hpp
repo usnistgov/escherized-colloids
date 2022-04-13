@@ -25,7 +25,7 @@
 
 #include "src/json.hpp"
 #include "src/motif.hpp"
-#include "tiling.hpp"
+#include "tiling.hpp" // Cannot provide absolute reference due to complications during compile time with Tactile library files
 #include "src/utils.hpp"
 
 using glm::dmat2;
