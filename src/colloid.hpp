@@ -53,7 +53,7 @@ using json = nlohmann::json;
 class Colloid {
  public:
   Colloid();
-  Colloid(Motif m, IsohedralTiling t, double tile_u0, bool debug=false);
+  Colloid(Motif m, IsohedralTiling t, vector<double> tile_u0, vector<double> edge_df, bool debug=false);
   ~Colloid();
 
   vector<double> unscale_coords_(const vector<double>& scaled_coords);
@@ -91,8 +91,14 @@ class Colloid {
 
   vector<double> boundaryCOM();
 
-  void setU0(const double u0) { edge_u0_ = u0; }
+  void setU0(const vector<double> u0) { edge_u0_ = u0; }
+  const vector<double> getU0() const { return edge_u0_; }
+
+  void setDform(const vector<double> df) { edge_df_ = df; }
+  const vector<double> getDform() const { return edge_df_; }
+
   void setDU(const double du) { edge_du_ = du; }
+  const double getDU() const { return edge_du_; }
 
   void unitCell(vector<vector<double>>* coords, vector<string>* types,
                 vector<vector<double>>* box, const int nx, const int ny);
@@ -107,21 +113,23 @@ class Colloid {
   void constrain_(vector<double>* motif_params);
   void initMotif_(double max_scale_factor, double min_scale_factor,
                   int n_scale_incr, int N, bool debug);
-  void perimeter_(double u0, double du, int n, double scale,
+  void perimeter_(vector<double> u0, vector<double> df, double du, int n, double scale,
                   vector<int>* boundary_ids,
                   vector<vector<double>>* boundary_coords,
                   vector<vector<double>>* tile_control_points);
-  vector<vector<dvec2>> perimeter_edges_(double u0, double du, int n,
+  vector<vector<dvec2>> perimeter_edges_(vector<double> u0, vector<double> df, double du, int n,
                                          double scale);
 
   bool tile_assigned_;   // Has the tile been assigned yet?
   bool motif_assigned_;  // Has the motif been assigned yet?
   bool built_;           // Has the colloid been constructed at least once?
 
-  double sphere_deform_;  // Normalized amount a sphere "deforms" the edge.
-  double edge_du_;        // Parameterized (Bezier) gap between boundary points.
-  double
+  //double sphere_deform_;  // Normalized amount a sphere "deforms" the edge.
+  vector<double> edge_df_; 
+  vector<double>
       edge_u0_;  // Parameterized (Bezier) starting point for boundary points.
+
+  double edge_du_;        // Parameterized (Bezier) gap between boundary points.
   double tile_scale_;  // The default Tactile tile is isotropically scaled by
                        // this factor.
 

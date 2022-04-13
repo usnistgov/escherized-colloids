@@ -117,7 +117,7 @@ Colloid::Colloid() : tile_(IsohedralTiling(1)) {
   defaults_();
 }
 
-Colloid::Colloid(Motif m, IsohedralTiling t, double tile_u0, bool debug)
+Colloid::Colloid(Motif m, IsohedralTiling t, vector<double> tile_u0, vector<double> edge_df, bool debug)
     : tile_(IsohedralTiling(1)) {
   /**
    * Instantiate a new colloid if all parameters are known (preferred method).
@@ -129,6 +129,7 @@ Colloid::Colloid(Motif m, IsohedralTiling t, double tile_u0, bool debug)
 
   defaults_();
   setU0(tile_u0);
+  setDform(edge_df);
 
   setMotif(m);
   setTile(t);
@@ -150,8 +151,8 @@ void Colloid::defaults_() {
   motif_assigned_ = false;
   built_ = false;
   setTileScale(1.0);
-  setU0(0.0);
-  sphere_deform_ = 0.25;
+  setU0({0.0});
+  setDform({0.25});
   setDU(0.1);
 }
 
@@ -217,7 +218,7 @@ void Colloid::setParameters(const vector<double>& params) {
    *
    * The parameters are an unrolled (double) vector useful for optimization
    * schemes. They are: [{motif scaled_com_x, motif scaled_com_y}, motif_theta,
-   * {v0, v1, etc. for tile}, edge_u0, tile_scale]. The scaled com's are values
+   * {v0, v1, etc. for tile}, {edge_u0}, {edge_df}, tile_scale]. The scaled com's are values
    * [0, 1] which describe the location in terms of the bounding box around the
    * tile. Motif COM coordinates are only used for tiles which are fundamental
    * domains.
@@ -237,7 +238,7 @@ void Colloid::setParameters(const vector<double>& params) {
         "must assign tile and motif before setting new parameters");
   }
 
-  if (params.size() != (3 + tile_.numParameters() + 2)) {
+  if (params.size() != (3 + tile_.numParameters() + 2*tile_.numEdgeShapes() + 1)) {
     throw customException(
         "incorrect number of parameters provided");
   }
@@ -249,8 +250,13 @@ void Colloid::setParameters(const vector<double>& params) {
   }
   tile_.setParameters(tile_params);
 
-  setU0(params[3 + tile_.numParameters()]);
-  setTileScale(params[3 + tile_.numParameters() + 1]);
+  vector<double> u0_params(params.begin()+3+tile_.numParameters(), params.begin()+3+tile_.numParameters()+tile_.numEdgeShapes());
+  setU0(u0_params);
+
+  vector<double> df_params(params.begin()+3+tile_.numParameters()+tile_.numEdgeShapes(), params.begin()+3+tile_.numParameters()+2*tile_.numEdgeShapes());
+  setDform(df_params);
+
+  setTileScale(params[params.size()-1]);
 
   // Build boundary (need updated tile_control_points_) before computing scaled
   // coordinates
@@ -395,7 +401,7 @@ const vector<double> Colloid::getParameters() {
    *
    * The parameters are an unrolled (double) vector useful for optimization
    * schemes. They are: [ {motif scaled_com_x, motif scaled_com_y}, motif_theta,
-   * {v0, v1, etc. for tile}, edge_u0, tile_scale]. See `setParameters()` for an
+   * {v0, v1, etc. for tile}, {edge_u0}, {edge_df}, tile_scale]. See `setParameters()` for an
    * explanation of the scaled coordinates. Motif COM coordinates are only
    * included for tiles which are fundamental domains.
    *
@@ -427,7 +433,12 @@ const vector<double> Colloid::getParameters() {
   for (size_t i = 0; i < tile_.numParameters(); ++i) {
     params_.push_back(tile_dummy[i]);
   }
-  params_.push_back(edge_u0_);
+  for (size_t i = 0; i < edge_u0_.size(); ++i) {
+    params_.push_back(edge_u0_[i]);
+  }
+  for (size_t i = 0; i < edge_df_.size(); ++i) {
+    params_.push_back(edge_df_[i]);
+  }
   params_.push_back(getTileScale());
 
   return params_;
@@ -511,11 +522,13 @@ bool Colloid::isMotifInside(const int N = 20) {
   }
 
   const double du = (1.0 - 0.0) / N;
+  const vector<double> u0(getTile().numEdgeShapes(), 0.0);
+
   vector<int> boundary_ids;
   vector<vector<double>> polygon;
   vector<vector<double>> tile_control_points;
 
-  perimeter_(0.0, du, N - 1, getTileScale(), &boundary_ids, &polygon,
+  perimeter_(u0, getDform(), du, N - 1, getTileScale(), &boundary_ids, &polygon,
              &tile_control_points);
 
   // Check each point in motif
@@ -547,13 +560,14 @@ double Colloid::fractionMotifInside(const int N = 20) {
   }
 
   const double du = (1.0 - 0.0) / N;
+  const vector<double> u0(getTile().numEdgeShapes(), 0.0);
   double outside = 0.0;
 
   vector<int> boundary_ids;
   vector<vector<double>> polygon;
   vector<vector<double>> tile_control_points;
 
-  perimeter_(0.0, du, N - 1, getTileScale(), &boundary_ids, &polygon,
+  perimeter_(u0, getDform(), du, N - 1, getTileScale(), &boundary_ids, &polygon,
              &tile_control_points);
 
   // Check each point in motif
@@ -630,11 +644,11 @@ void Colloid::buildBoundary_() {
    * points and 1 "stop codon" on each edge.
    */
 
-  perimeter_(edge_u0_, edge_du_, 1 + 4 + 1, getTileScale(), &boundary_ids_,
+  perimeter_(getU0(), getDform(), getDU(), 1 + 4 + 1, getTileScale(), &boundary_ids_,
              &boundary_coords_, &tile_control_points_);
 }
 
-void Colloid::perimeter_(double u0, double du, int n, double scale,
+void Colloid::perimeter_(vector<double> u0, vector<double> df, double du, int n, double scale,
                          vector<int>* boundary_ids,
                          vector<vector<double>>* boundary_coords,
                          vector<vector<double>>* tile_control_points) {
@@ -650,7 +664,9 @@ void Colloid::perimeter_(double u0, double du, int n, double scale,
    * curves.
    *
    * @param[in] u0 Starting point for boundary points along Bezier curve. Should
-   * be in (0,1).
+   * be in (0,1) for each "unique edge" as defined by Tactile.
+   * @param[in] df Deformation magnitude (positive or negative) along Bezier curve. 
+   * Should be provided for each "unique edge" as defined by Tactile.
    * @param[in] du Gap along Bezier curve between boundary points. Should be
    * < (1-u0)/n.
    * @param[in] n Total number of points to place along each edge (incl. stop codons).
@@ -664,7 +680,7 @@ void Colloid::perimeter_(double u0, double du, int n, double scale,
    */
 
   // Put points on perimeter (this returns stop codons AND control points)
-  vector<vector<dvec2>> edges = perimeter_edges_(u0, du, n, scale);
+  vector<vector<dvec2>> edges = perimeter_edges_(u0, df, du, n, scale);
 
   // Iterate over the edges of a single tile, asking the tiling to
   // tell you about the geometric information needed to transform
@@ -960,7 +976,7 @@ void Colloid::initMotif_(double max_scale_factor = 5.0,
   return;
 }
 
-vector<vector<dvec2>> Colloid::perimeter_edges_(double u0, double du, int n,
+vector<vector<dvec2>> Colloid::perimeter_edges_(vector<double> u0, vector<double> df, double du, int n,
                                                 double scale) {
   /**
    * Create the Bezier curves that will serve as tile edges.
@@ -969,8 +985,9 @@ vector<vector<dvec2>> Colloid::perimeter_edges_(double u0, double du, int n,
    * them, and are uniformly scaled.  They will be rotated into place later on
    * by the Tactile library.
    *
-   * @param u0 Starting point for boundary points along Bezier curve. Should be
+   * @param u0 Starting point for boundary points along each Bezier curve. Should be
    * in (0,1). S and U edges start from their center and essentially ignore this.
+   * @param df Deformation (positive or negative) along each Bezier curve. 
    * @param du Gap along Bezier curve between boundary points. Should be < 1.
    * @param n Total number of points to place along each a completed edge. Note 
    * that U and S edges are cut in "half" and n refers to the total edge, so we
@@ -993,10 +1010,16 @@ vector<vector<dvec2>> Colloid::perimeter_edges_(double u0, double du, int n,
   // control points.
   vector<vector<dvec2>> edges;
 
+  if (u0.size() != getTile().numEdgeShapes()) {
+    throw customException("incorrect number of u0 parameters provided");
+  }
+  if (df.size() != getTile().numEdgeShapes()) {
+    throw customException("incorrect number of df parameters provided");
+  }
+  assert(n > 0);
+
   double u0_ = 0, du_ = 0;
   int n_ = 0;
-
-  assert(n > 0);
 
   // Canonical Tactile coordinates
   dvec2 cp_left(0.0, 0.0), cp_right(1.0 * scale, 0.0), dummy;
@@ -1005,19 +1028,21 @@ vector<vector<dvec2>> Colloid::perimeter_edges_(double u0, double du, int n,
   for (U8 idx = 0; idx < tile_.numEdgeShapes(); ++idx) {
     vector<dvec2> ej;
 
+    double sphere_deform = df[idx];
+
     // Define Bezier Curve that is sort of like a sphere impacting
     // This could definitely be changed, but will introduce more
     // free parameters.
     ej.push_back(dvec2(0.0, 0.0));
-    ej.push_back(dvec2(1 / 3. * scale, sphere_deform_ * scale));
-    ej.push_back(dvec2(2 / 3. * scale, sphere_deform_ * scale));
+    ej.push_back(dvec2(1 / 3. * scale, sphere_deform * scale));
+    ej.push_back(dvec2(2 / 3. * scale, sphere_deform * scale));
     ej.push_back(dvec2(1.0 * scale, 0.0));
 
     // Now, depending on the edge shape class, enforce symmetry
     // constraints on edges.
     switch (tile_.getEdgeShape(idx)) {
       case J:
-        u0_ = u0;
+        u0_ = u0[idx];
         du_ = du;
         n_ = n;
         break;
@@ -1046,7 +1071,7 @@ vector<vector<dvec2>> Colloid::perimeter_edges_(double u0, double du, int n,
       case I:
         ej[1].y = 0.0;
         ej[2].y = 0.0;
-        u0_ = u0;
+        u0_ = u0[idx];
         du_ = du;
         n_ = n;
         break;
@@ -1116,10 +1141,10 @@ void Colloid::load(const string filename) {
 
   if (j.contains("Properties")) {
     try {
-      edge_du_ = j["Properties"]["edge_du"].get<double>();
-      edge_u0_ = j["Properties"]["edge_u0"].get<double>();
+      setDU(j["Properties"]["edge_du"].get<double>());
+      setU0(j["Properties"]["edge_u0"].get<vector<double>>());
       setTileScale(j["Properties"]["tile_scale"].get<double>());
-      sphere_deform_ = j["Properties"]["sphere_deform"].get<double>();
+      setDform(j["Properties"]["sphere_deform"].get<vector<double>>());
       boundary_ids_ = j["Properties"]["boundary_ids"].get<vector<int>>();
       boundary_coords_ =
           j["Properties"]["boundary_coords"].get<vector<vector<double>>>();
@@ -1166,12 +1191,12 @@ void Colloid::dump(const string filename) {
     if (built_) {
       j["Properties"] = {{"boundary_ids", boundary_ids_},
                          {"boundary_coords", boundary_coords_},
-                         {"sphere_deform", sphere_deform_},
-                         {"edge_du", edge_du_},
-                         {"edge_u0", edge_u0_},
+                         {"sphere_deform", getDform()},
+                         {"edge_du", getDU()},
+                         {"edge_u0", getU0()},
                          {"tile_scale", getTileScale()},
                          {"tile_control_points", tile_control_points_},
-                         {"params", params_},
+                         {"params", getParameters()},
                          {"built", built_}};
     }
 
