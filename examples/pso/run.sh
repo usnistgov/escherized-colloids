@@ -1,8 +1,8 @@
 #!/bin/bash
-# Compile the example
-make;
+# Compile the example.
+make clean; make;
 
-# Run
-./pso
+# Run the code.
+./pso;
 
 # Visualize the output (success.xyz) with any standard molecular visualization program.

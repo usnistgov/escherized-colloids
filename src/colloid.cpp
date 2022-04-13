@@ -993,8 +993,8 @@ vector<vector<dvec2>> Colloid::perimeter_edges_(double u0, double du, int n,
   // control points.
   vector<vector<dvec2>> edges;
 
-  double u0_, du_;
-  int n_;
+  double u0_ = 0, du_ = 0;
+  int n_ = 0;
 
   assert(n > 0);
 

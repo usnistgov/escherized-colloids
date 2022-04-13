@@ -17,8 +17,8 @@
 #include <map>
 
 #include "tiling.hpp"
-#include "motif.hpp"
-#include "colloid.hpp"
+#include "src/motif.hpp"
+#include "src/colloid.hpp"
 
 using namespace std;
 using namespace csk;
@@ -116,7 +116,7 @@ int main( int argc, char **argv )
 
 	// Build the colloid
 	try {
-		Colloid c(m, t, 0.3);
+		Colloid c(m, t, 0.25);
 		c.dump("colloid.json");
 		c.dumpXYZ("colloid.xyz", false);
 	} catch ( const exception& e ) {

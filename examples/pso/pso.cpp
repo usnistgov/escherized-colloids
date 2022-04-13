@@ -10,8 +10,8 @@
 #include <cmath>
 
 #include "tiling.hpp"
-#include "motif.hpp"
-#include "colloid.hpp"
+#include "src/motif.hpp"
+#include "src/colloid.hpp"
 
 struct fn_data {
 	Colloid* c;
@@ -75,14 +75,15 @@ int main()
 	data.c = new Colloid();
 	try {
 		Motif m;
-		m.load("../../motif_library/d_1_vitruvian.json"); // Select a motif
+		m.load("../../motif_library/d1_vitruvian.json"); // Select a motif
 		IsohedralTiling t( 7 ); // Use default tile parameters - usually good
 		data.c->setMotif(m);
 		data.c->setTile(t);
 		data.c->init();
 		x_1 = data.c->getParameters(); // Initial guess is result after initialization
 	} catch ( const exception& e ) {
-		throw( customException( "unable to initialize colloid" ) );
+		std::cerr << "unable to initialize colloid" << std::endl;
+		return -1;
 	}
 
 	arma::vec lb = arma::zeros(x_1.size(), 1); // Lower bounds

@@ -34,4 +34,4 @@ init.o: init.cpp
 	$(CPP) $(CPPFLAGS) $^ -c -o $@
 
 clean:
-	rm -f *.o init
+	rm -f *.o init colloid*.xyz colloid*.json

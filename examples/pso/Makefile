@@ -1,5 +1,3 @@
-#++ -Wall -std=c++11 -O3 -march=native -ffp-contract=fast -I/usr/include/ -I/home/nam/NIST/workspace/magic_colloids/escherized_colloids/optim/header_only_version pso.cpp -o pso.out
-
 INCLUDES = -I../../tactile/deps/glm \
 	-I../../tactile/deps/gl3w/build/include \
 	-I../../tactile/deps/glfw-3.2.1/include \
@@ -8,7 +6,7 @@ INCLUDES = -I../../tactile/deps/glm \
 CC = gcc 
 CPP = g++
 CFLAGS = $(INCLUDES) -I../../tactile/src -g -Wall 
-CPPFLAGS = $(INCLUDES) -I../../tactile/src -I../../src/ -g -Wall -std=c++11 -O3
+CPPFLAGS = $(INCLUDES) -I../../tactile/src -I../../ -g -Wall -std=c++11 -O3
 TACTILE_CPPFLAGS = -I../../tactile/deps/glm -I../../tactile/src -g -Wall -std=c++11 -O3
 
 LIBS = -L../../tactile/deps/glfw-3.2.1/build/src \
@@ -36,4 +34,4 @@ pso.o: pso.cpp
 	$(CPP) $(CPPFLAGS) -march=native -ffp-contract=fast -I/usr/include/ -I../../optim/header_only_version $^ -c -o $@
 
 clean:
-	rm -f *.o pso
+	rm -f *.o pso success.json success.xyz

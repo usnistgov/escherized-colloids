@@ -17,8 +17,8 @@
 #include <map>
 
 #include "tiling.hpp"
-#include "motif.hpp"
-#include "colloid.hpp"
+#include "src/motif.hpp"
+#include "src/colloid.hpp"
 
 using namespace std;
 using namespace csk;
@@ -132,7 +132,7 @@ int main( int argc, char **argv )
 		dumpXYZ(c_, t_, "unit_cell.xyz");
 	} catch ( const exception& e ) {
 		cout << e.what();
-		return 1;
+		return -1;
 	}
 
 	return 0;
