@@ -652,7 +652,7 @@ void Colloid::perimeter_(double u0, double du, int n, double scale,
    * @param[in] u0 Starting point for boundary points along Bezier curve. Should
    * be in (0,1).
    * @param[in] du Gap along Bezier curve between boundary points. Should be
-   * < 1.
+   * < (1-u0)/n.
    * @param[in] n Total number of points to place along each edge (incl. stop codons).
    * @param[in] scale The default Tactile tile is isotropically scaled by this
    * factor.
