@@ -3,7 +3,7 @@
  * @author Nathan A. Mahynski
  */
 
-#include "utils.hpp"
+#include "src/utils.hpp"
 
 void dumpXYZ(const vector<vector<double>> &coords, const vector<string> &types, const string filename) {
   /**

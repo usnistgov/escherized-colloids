@@ -23,10 +23,10 @@
 #include <string>
 #include <vector>
 
-#include "json.hpp"
-#include "motif.hpp"
+#include "src/json.hpp"
+#include "src/motif.hpp"
 #include "tiling.hpp"
-#include "utils.hpp"
+#include "src/utils.hpp"
 
 using glm::dmat2;
 using glm::dmat3;
@@ -75,6 +75,7 @@ class Colloid {
   void setTileScale(const double s) {
     tile_scale_ = s;
   }  // Assign the tile_scale_.
+  double getTileScale() { return tile_scale_; }
   double tileArea();
 
   bool isMotifInside(const int N);
@@ -84,7 +85,7 @@ class Colloid {
 
   void init() {
     buildBoundary_();
-    initMotif_(5.0, 0.2, 1000, 20);
+    initMotif_(10.0, 0.1, 1000, 20, false);
     built_ = true;
   }  // Initialize the colloid.
 
@@ -105,7 +106,7 @@ class Colloid {
   void buildBoundary_();
   void constrain_(vector<double>* motif_params);
   void initMotif_(double max_scale_factor, double min_scale_factor,
-                  int n_scale_incr, int N);
+                  int n_scale_incr, int N, bool debug);
   void perimeter_(double u0, double du, int n, double scale,
                   vector<int>* boundary_ids,
                   vector<vector<double>>* boundary_coords,

@@ -3,7 +3,7 @@
  * @author Nathan A. Mahynski
  */
 
-#include "/colloid.hpp"
+#include "src/colloid.hpp"
 
 double mod(double x, double v) {
   /**
@@ -422,7 +422,7 @@ const vector<double> Colloid::getParameters() {
     params_.push_back(tile_dummy[i]);
   }
   params_.push_back(edge_u0_);
-  params_.push_back(tile_scale_);
+  params_.push_back(getTileScale());
 
   return params_;
 }
@@ -509,7 +509,7 @@ bool Colloid::isMotifInside(const int N = 20) {
   vector<vector<double>> polygon;
   vector<vector<double>> tile_control_points;
 
-  perimeter_(0.0, du, N - 1, tile_scale_, &boundary_ids, &polygon,
+  perimeter_(0.0, du, N - 1, getTileScale(), &boundary_ids, &polygon,
              &tile_control_points);
 
   // Check each point in motif
@@ -547,7 +547,7 @@ double Colloid::fractionMotifInside(const int N = 20) {
   vector<vector<double>> polygon;
   vector<vector<double>> tile_control_points;
 
-  perimeter_(0.0, du, N - 1, tile_scale_, &boundary_ids, &polygon,
+  perimeter_(0.0, du, N - 1, getTileScale(), &boundary_ids, &polygon,
              &tile_control_points);
 
   // Check each point in motif
@@ -624,7 +624,7 @@ void Colloid::buildBoundary_() {
    * points and 1 "stop codon" on each edge.
    */
 
-  perimeter_(edge_u0_, edge_du_, 1 + 4 + 1, tile_scale_, &boundary_ids_,
+  perimeter_(edge_u0_, edge_du_, 1 + 4 + 1, getTileScale(), &boundary_ids_,
              &boundary_coords_, &tile_control_points_);
 }
 
@@ -848,7 +848,7 @@ void new_idx_(const vector<dvec2>& shape, vector<int>& last_edge, vector<int>& c
 
 void Colloid::initMotif_(double max_scale_factor = 5.0,
                          double min_scale_factor = 0.2, int n_scale_incr = 100,
-                         int N = 20) {
+                         int N = 20, bool debug = false) {
   /**
    * Initialize the motif.
    *
@@ -866,14 +866,17 @@ void Colloid::initMotif_(double max_scale_factor = 5.0,
    * @param n_scale_incr Number of intermediate scale factors to try.
    * @param N Number of points to place along edges when discretizing into a
    * polygon.
+   * @param debug Whether or not to print out XYZ file if the initialization
+   * fails.  This always writes to _debug_.xyz.
    *
    * @throws customException if initialization fails for any reason.
    */
 
   if (isTileFundamental()) {
-    // If no restrictions, place motif COM on tile COM and shrinkwrap
+    // If no restrictions, place motif COM on tile COM and shrink/expand to fit.
     // Tactile default parameters provide convenient, convex, starting points
-    // at least one control point is at (0,0).
+    // at least one control point is at (0,0).  This way, we can scale points
+    // easily by multiplying by a number.
 
     // 1. Place motif so its COM is on tile COM
     // tile COM is estimated from the functional points on the perimeter
@@ -884,54 +887,58 @@ void Colloid::initMotif_(double max_scale_factor = 5.0,
     m_.translate(dx);
 
     // 2. Expand/contract the tile until motif "just" fits
-    double min_scale = tile_scale_ * min_scale_factor;
-    double max_scale = tile_scale_ * max_scale_factor;
-    double orig_scale = tile_scale_;
-    double last_scale = tile_scale_;
+    double min_scale = getTileScale() * min_scale_factor;
+    double max_scale = getTileScale() * max_scale_factor;
+    double orig_scale = getTileScale();
+    bool found = false;
     if (isMotifInside(N)) {
       // Shrink the tile to fit
-      bool found = false;
+      double last_scale = getTileScale();
       for (int i = 0; i <= n_scale_incr; ++i) {
-        tile_scale_ =
+        double new_scale =
             (orig_scale - (orig_scale - min_scale) / n_scale_incr * i);
-        vector<double> dd = {(tile_scale_ / last_scale - 1.0) * tile_com[0],
-                             (tile_scale_ / last_scale - 1.0) * tile_com[1]};
-        m_.translate(dd);
+        setTileScale(new_scale);
+
+        vector<double> params = m_.getParameters();
+        m_.setParameters({new_scale*tile_com[0], new_scale*tile_com[1], params[2]});
 
         if (!isMotifInside(N)) {
           // Move motif back to last position
-          dd[0] = -dd[0];
-          dd[1] = -dd[1];
-          m_.translate(dd);
-
-          // Save last good scale
+          m_.setParameters({last_scale*tile_com[0], last_scale*tile_com[1], params[2]});
           setTileScale(last_scale);
           found = true;
           break;
         }
-        last_scale = tile_scale_;
+        last_scale = getTileScale();
       }
       if (!found) {
-        throw(customException("unable to initialize motif inside tile"));
+        if (debug) {
+          buildBoundary_();
+          dumpXYZ("_debug_.xyz", true);
+        }
+        throw(customException("unable to shrink tile around motif"));
       }
     } else {
       // Expand the tile to fit
-      bool found = false;
       for (int i = 0; i <= n_scale_incr; ++i) {
-        tile_scale_ =
-            (orig_scale + (max_scale - orig_scale) / n_scale_incr * i);
-        vector<double> dd = {(tile_scale_ / last_scale - 1.0) * tile_com[0],
-                             (tile_scale_ / last_scale - 1.0) * tile_com[1]};
-        m_.translate(dd);
+        double new_scale = (orig_scale + (max_scale - orig_scale) / n_scale_incr * i);
+        setTileScale(new_scale);
+
+        vector<double> params = m_.getParameters();
+        m_.setParameters({new_scale*tile_com[0], new_scale*tile_com[1], params[2]});
+
         if (isMotifInside(N)) {
           // Motif and tile now in acceptable positions
           found = true;
           break;
         }
-        last_scale = tile_scale_;
       }
       if (!found) {
-        throw(customException("unable to initialize motif inside tile"));
+        if (debug) {
+          buildBoundary_();
+          dumpXYZ("_debug_.xyz", true);
+        }
+        throw(customException("unable to expand tile around motif"));
       }
     }
 
@@ -1154,7 +1161,7 @@ void Colloid::dump(const string filename) {
                          {"sphere_deform", sphere_deform_},
                          {"edge_du", edge_du_},
                          {"edge_u0", edge_u0_},
-                         {"tile_scale", tile_scale_},
+                         {"tile_scale", getTileScale()},
                          {"tile_control_points", tile_control_points_},
                          {"params", params_},
                          {"built", built_}};
@@ -1255,7 +1262,7 @@ void Colloid::unitCell(vector<vector<double>>* coords, vector<string>* types,
   const int n = tile_.numAspects();
   vector<vector<double>> mc = m_.getCoords();
   vector<string> mt = m_.getTypes();
-  glm::dvec2 t1 = tile_.getT1() * tile_scale_, t2 = tile_.getT2() * tile_scale_;
+  glm::dvec2 t1 = tile_.getT1() * getTileScale(), t2 = tile_.getT2() * getTileScale();
   vector<dvec2> glm_coords;
   for (int i = 0; i < n; ++i) {
     dmat3 T = tile_.getAspectTransform(i);

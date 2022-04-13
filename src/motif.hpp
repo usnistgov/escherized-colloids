@@ -19,8 +19,8 @@
 #include <string>
 #include <vector>
 
-#include "json.hpp"
-#include "utils.hpp"
+#include "src/json.hpp"
+#include "src/utils.hpp"
 
 using std::ifstream;
 using std::istringstream;
