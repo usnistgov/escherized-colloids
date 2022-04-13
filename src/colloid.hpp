@@ -53,7 +53,7 @@ using json = nlohmann::json;
 class Colloid {
  public:
   Colloid();
-  Colloid(Motif m, IsohedralTiling t, double tile_u0);
+  Colloid(Motif m, IsohedralTiling t, double tile_u0, bool debug=false);
   ~Colloid();
 
   vector<double> unscale_coords_(const vector<double>& scaled_coords);
@@ -70,6 +70,8 @@ class Colloid {
   void setMotif(Motif m);
   Motif getMotif();
 
+  void init(bool debug=false);
+
   void setTile(IsohedralTiling t);
   const IsohedralTiling getTile();
   void setTileScale(const double s) {
@@ -82,12 +84,6 @@ class Colloid {
   double fractionMotifInside(const int N);
 
   bool isTileFundamental();
-
-  void init() {
-    buildBoundary_();
-    initMotif_(10.0, 0.1, 1000, 20, false);
-    built_ = true;
-  }  // Initialize the colloid.
 
   void load(const string filename);
   void dump(const string filename);

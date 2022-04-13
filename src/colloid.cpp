@@ -117,7 +117,7 @@ Colloid::Colloid() : tile_(IsohedralTiling(1)) {
   defaults_();
 }
 
-Colloid::Colloid(Motif m, IsohedralTiling t, double tile_u0)
+Colloid::Colloid(Motif m, IsohedralTiling t, double tile_u0, bool debug)
     : tile_(IsohedralTiling(1)) {
   /**
    * Instantiate a new colloid if all parameters are known (preferred method).
@@ -132,8 +132,14 @@ Colloid::Colloid(Motif m, IsohedralTiling t, double tile_u0)
 
   setMotif(m);
   setTile(t);
-  init();  // This will find a good value for tile_scale_
+  init(debug);  // This will find a good value for tile_scale_
 }
+
+void Colloid::init(bool debug) {
+  buildBoundary_();
+  initMotif_(10.0, 0.1, 1000, 20, debug);
+  built_ = true;
+}  // Initialize the colloid.
 
 void Colloid::defaults_() {
   /**

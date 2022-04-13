@@ -12,8 +12,8 @@
 #include <iostream>
 
 #include "tiling.hpp"
-#include "colloid.hpp"
-#include "utils.hpp"
+#include "src/colloid.hpp"
+#include "src/utils.hpp"
 
 using namespace std;
 using namespace csk;
