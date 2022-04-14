@@ -116,12 +116,14 @@ int main( int argc, char **argv )
 
 	// Build the colloid
 	try {
-		Colloid c(m, t, 0.25);
+		vector<double> u0(t.numEdgeShapes(), 0.1);
+		vector<double> df(t.numEdgeShapes(), 0.25);
+		Colloid c(m, t, u0, df);
 		c.dump("colloid.json");
 		c.dumpXYZ("colloid.xyz", false);
 	} catch ( const exception& e ) {
 		cout << e.what();
-		return 1;
+		return -1;
 	}
 
 	return 0;

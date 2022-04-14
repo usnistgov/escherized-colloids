@@ -35,7 +35,14 @@ double area_error2(const arma::vec& vals_inp, arma::vec* grad_out, void* opt_dat
 	for( size_t i = 0; i < p.size(); ++i ) {
 		p[i] = vals_inp(i);
 	}
-	data->c->setParameters(p);
+	try {
+		data->c->setParameters(p);
+	} catch ( customException& e) {
+		// Report the error and return a large value to allow the code to try something
+		// else without crashing.
+		std::cerr << e.getMessage() << std::endl;
+		return data->penalty;
+	}
 
 	double raw_tile_area = data->c->tileArea();
 	double f_in = data->c->fractionMotifInside(20);
@@ -58,9 +65,9 @@ double area_error2(const arma::vec& vals_inp, arma::vec* grad_out, void* opt_dat
 	 * applied. Note that tile area is usually on the order of unity for motifs in the included
 	 * library, but penalty should be chosen to be commensurate with it.
 	 */
-	double objective_function = pow(f_out*(data->penalty + 1.0/raw_tile_area) + raw_tile_area - data->A_target, 2);
+	double loss_function = pow(f_out*(data->penalty + 1.0/raw_tile_area) + raw_tile_area - data->A_target, 2);
 
-	return objective_function;
+	return loss_function;
 }
 
 int main()
@@ -79,6 +86,11 @@ int main()
 		IsohedralTiling t( 7 ); // Use default tile parameters - usually good
 		data.c->setMotif(m);
 		data.c->setTile(t);
+		vector<double> u0(t.numEdgeShapes(), 0.1);
+                vector<double> df(t.numEdgeShapes(), 0.25);
+		data.c->setU0(u0);
+		data.c->setDform(df);
+		data.c->setDU(0.1);
 		data.c->init();
 		x_1 = data.c->getParameters(); // Initial guess is result after initialization
 	} catch ( const exception& e ) {
@@ -92,8 +104,20 @@ int main()
 	lb(2) = 0.0; // Motif theta
 	lb(3) = 0.0; // IH07 v_0 - see https://isohedral.ca/software/tactile/ to estimate visually
 	lb(4) = 0.0; // IH07 v_1 - see https://isohedral.ca/software/tactile/ to estimate visually
-	lb(5) = 0.1; // edge u0
-	lb(6) = 0.5; // Tile scale
+
+	// edge u0 - IH 7 has 3 "edge" units - see tile.numEdgeShapes()
+	// Note that with the "4+1" decoration + stop codon placement scheme the valid range is
+	// du/2 <= u0 <= 1-5*du-du/2.
+	lb(5) = 0.1;
+	lb(6) = 0.1;
+	lb(7) = 0.1;
+
+	// edge df - again, we have 3 of these values
+	lb(8) = 0.1;
+	lb(9) = 0.1;
+	lb(10) = 0.1;
+
+	lb(11) = 0.5*x_1[x_1.size()-1]; // Tile scale - use a factor on the initial scale found
 
 	arma::vec ub = arma::zeros(x_1.size(), 1); // Lower bounds
 	ub(0) = 1.0; // Motif scaled_com_x
@@ -101,8 +125,16 @@ int main()
 	ub(2) = 2.0*arma::datum::pi; // Motif theta
 	ub(3) = 2.0; // IH07 v_0 - see https://isohedral.ca/software/tactile/ to estimate visually
 	ub(4) = 2.0; // IH07 v_1 - see https://isohedral.ca/software/tactile/ to estimate visually
-	ub(5) = 0.5; // edge u0
-	ub(6) = 3.0; // Tile scale
+	
+	ub(5) = 0.4; // 1.0 - 5*0.1 - 0.1/2 = 0.45
+	ub(6) = 0.4;
+	ub(7) = 0.4;
+	
+	ub(8) = 0.5; // edge df - again, we have 3 of these values
+	ub(9) = 0.5;
+	ub(10) = 0.5;
+	
+	ub(11) = 1.5*x_1[x_1.size()-1]; // Tile scale - use a factor on the initial scale found
 
 	optim::algo_settings_t settings_1;
 	
@@ -112,8 +144,8 @@ int main()
  	settings_1.print_level = 0;
 
 	settings_1.pso_settings.center_particle = false;
-	settings_1.pso_settings.n_pop = 50; // population size of each generation.
-	settings_1.pso_settings.n_gen = 40; // number of vectors to generate (iterations).
+	settings_1.pso_settings.n_pop = 5000; // population size of each generation.
+	settings_1.pso_settings.n_gen = 10; // number of vectors to generate (iterations).
  
 	bool success_1 = optim::pso(x_1, area_error2, &data, settings_1);
  

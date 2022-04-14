@@ -123,7 +123,9 @@ int main( int argc, char **argv )
 
 	// Build the colloid
 	try {
-		Colloid c(m, t, 0.3);
+		vector<double> u0(t.numEdgeShapes(), 0.25);
+                vector<double> df(t.numEdgeShapes(), 0.25);
+		Colloid c(m, t, u0, df);
 		c.dumpXYZ("colloid.xyz", false);
 		
 		vector<vector<double>> c_, b_;

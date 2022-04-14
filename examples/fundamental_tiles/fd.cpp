@@ -34,7 +34,9 @@ int main( int argc, char **argv )
 					m.load("../../motif_library/c1_random.json");
 					
 					// Create tile
-					Colloid c(m, t, 0.25);
+					vector<double> u0(t.numEdgeShapes(), 0.25);
+					vector<double> df(t.numEdgeShapes(), 0.5);
+					Colloid c(m, t, u0, df);
 					stringstream ss, tt;
 					ss << "colloid_" << int(ih_type) << ".xyz";
 					c.dumpXYZ(ss.str(), true);

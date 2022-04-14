@@ -117,7 +117,7 @@ Colloid::Colloid() : tile_(IsohedralTiling(1)) {
   defaults_();
 }
 
-Colloid::Colloid(Motif m, IsohedralTiling t, vector<double> tile_u0, vector<double> edge_df, bool debug)
+Colloid::Colloid(Motif m, IsohedralTiling t, vector<double> tile_u0, vector<double> edge_df, const double du, const bool debug)
     : tile_(IsohedralTiling(1)) {
   /**
    * Instantiate a new colloid if all parameters are known (preferred method).
@@ -127,13 +127,36 @@ Colloid::Colloid(Motif m, IsohedralTiling t, vector<double> tile_u0, vector<doub
    * This can be changed later.
    */
 
+  // If you create a Colloid object manually, follow these steps to correctly initialize it.
   defaults_();
   setU0(tile_u0);
   setDform(edge_df);
+  setDU(du);
 
   setMotif(m);
   setTile(t);
   init(debug); // This will find a good value for tile_scale_
+}
+
+const vector<double> Colloid::getU0() {
+  if (edge_u0_.size() == 0) {
+    throw customException("u0 has not been set");
+  }
+  return edge_u0_;
+}
+
+const vector<double> Colloid::getDform() {
+  if (edge_df_.size() == 0) {
+    throw customException("df has not been set");
+  }
+  return edge_df_;
+}
+
+const double Colloid::getDU() {
+  if (edge_du_ < 0) {
+    throw customException("du has not been set");
+  }
+  return edge_du_;
 }
 
 void Colloid::init(bool debug) {
@@ -151,9 +174,9 @@ void Colloid::defaults_() {
   motif_assigned_ = false;
   built_ = false;
   setTileScale(1.0);
-  setU0({0.0});
-  setDform({0.25});
-  setDU(0.1);
+  setU0({}); // size of 0 serves to indicate it has not been set yet
+  setDform({}); // size of 0 serves to indicate it has not been set yet
+  setDU(-1.0); // <0 serves as flag to indicate it has not been set yet
 }
 
 Colloid::~Colloid() {}
@@ -227,18 +250,23 @@ void Colloid::setParameters(const vector<double>& params) {
    * uses reduced units since it knows about the tile and means that these
    * variables can be given reasonable bounds to an optimizer in advance.
    *
+   * Note that if |df| is too close to 0 it is adjusted to a non-zero value
+   * of the same sign.  This is to enforce that edges SHOULD have curvature
+   * if possible.
+   *
    * @param params Parameter vector described above.
    *
    * @throws customException if tile or motif has not been assigned yet.
    */
 
   if (!motif_assigned_ ||
-      !tile_assigned_) {  // Makes sure the tile and colloid have been assigned
+      !tile_assigned_) { // Makes sure the tile and colloid have been assigned
     throw customException(
         "must assign tile and motif before setting new parameters");
   }
 
-  if (params.size() != (3 + tile_.numParameters() + 2*tile_.numEdgeShapes() + 1)) {
+  // Make sure we have the right number of parameters in the vector
+  if (params.size() != static_cast<unsigned int>(3 + tile_.numParameters() + 2*tile_.numEdgeShapes() + 1)) {
     throw customException(
         "incorrect number of parameters provided");
   }
@@ -250,12 +278,80 @@ void Colloid::setParameters(const vector<double>& params) {
   }
   tile_.setParameters(tile_params);
 
+  // A few sanity checks:
+
+  // 1. Make sure u0 + du*(N-1) < 1-du/2, i.e., when you place the decorations they
+  // do not go past the "end" of the bezier curve.  For S and U edges, I have
+  // doubled du (since each Bezier curve is a "part", or half, of a tile edge)
+  // to more consistently space points with respect to I and J edges.
+
+  // 2. For consistency, we also check that u0 > du/2. "du" may be thought of as the
+  // diameter of the circular decoration.
+
+  // The net valid range is du/2 <= u0 <= 1-5*du-du/2; e.g., 0.05 < u0 < 0.45 if du = 0.1.
+
+  // In practice we place 1+4+1 total points "starting" from u0 along Bezier curve and delete
+  // one of the extra stop codons later once a fixed orientation for them is determined.
+  // If the "furthest" one is kept then it is at u0 + (1+4+1 - 1)*du which we need to test,
+  // since at this point we do not know if we are going to keep it or not.
   vector<double> u0_params(params.begin()+3+tile_.numParameters(), params.begin()+3+tile_.numParameters()+tile_.numEdgeShapes());
+  const int n_decor = 1+4+1;
+  for (U8 idx = 0; idx < tile_.numEdgeShapes(); ++idx) {
+    int n_edge = 0;
+    stringstream ss;
+    switch (tile_.getEdgeShape(idx)) {
+      case J: case I:
+        n_edge = n_decor;
+        if ( !(u0_params[idx] + getDU()*(n_edge-1) <= 1.0 - getDU()/2.0) ) {
+          ss << "decorations on (J/I) edge index " << int(idx) << " will go past the end, u0 = " << u0_params[idx] << ", du = " << getDU();
+          throw customException(ss.str());
+        }
+        if ( !(u0_params[idx] >= getDU()/2.0) ) {
+          ss << "decorations on (J/I) edge index " << int(idx) << " will begin before the start, u0 = " << u0_params[idx] << ", du = " << getDU();
+          throw customException(ss.str());
+        }
+        break;
+      case U: case S: // In perimeter_edges_() we doubled dU since edge is half the size
+        // n_edge <= n_decor/2 due to integer rounding (intentional)
+        n_edge = (n_decor-2)/2+1; // This is the n used in perimeter_edges_()
+        // In these cases we "start" from the midpoint at "1" not "0" but the direction does
+        // not matter, just the total "length" of the patch.
+        if ( !(u0_params[idx] + 2*getDU()*(n_edge-1) <= 1.0 - getDU()) ) {
+          ss << "decorations on (S/U) edge index " << int(idx) << " will go past the end, u0 = " << u0_params[idx] << ", du = " << getDU();
+          throw customException(ss.str());
+        }
+        if ( !(u0_params[idx] >= getDU()) ) {
+          ss << "decorations on (S/U) edge index " << int(idx) << " will begin before the start, u0 = " << u0_params[idx] << ", du = " << getDU();
+          throw customException(ss.str());
+        }
+        break;
+    }
+  }
   setU0(u0_params);
 
+  // 3. Check df != 0 (can be positive or negative though)
+  // To practically allow the optimizer to change signs, set a gap near 0 which is "off limits"
+  const double df_tol = 0.05; // This manual tolerance seems large, but a reasonable |df| is >0.1.
   vector<double> df_params(params.begin()+3+tile_.numParameters()+tile_.numEdgeShapes(), params.begin()+3+tile_.numParameters()+2*tile_.numEdgeShapes());
+  for (unsigned int i=0; i < df_params.size(); ++i) {
+    if ( (df_params[i] > 0) && (df_params[i] < df_tol) ) {
+      df_params[i] = df_tol;
+    }
+    if ( (df_params[i] < 0) && (df_params[i] > df_tol) ) {
+      df_params[i] = -df_tol;
+    }
+    /*if (fabs(df_params[i]) < df_tol) { 
+      stringstream ss;
+      ss << "|df| (" << fabs(df_params[i]) << ") is less than tolerance (" << df_tol << ")";
+      throw customException(ss.str());
+    }*/
+  }
   setDform(df_params);
 
+  // 4. Check scale is > 0
+  if (params[params.size()-1] <= 0.0) {
+    throw customException("tile scale must be positive");
+  }
   setTileScale(params[params.size()-1]);
 
   // Build boundary (need updated tile_control_points_) before computing scaled
@@ -501,6 +597,24 @@ const IsohedralTiling Colloid::getTile() {
   }
 }
 
+const vector<vector<double>> Colloid::buildTilePolygon(const int N) {
+  /**
+   * Approximate the tile's boundary as a polygon with a discrete
+   * number of points on each edge.
+   */
+  const double du = (1.0 - 0.0) / N;
+  const vector<double> u0(getTile().numEdgeShapes(), 0.0);
+
+  vector<int> boundary_ids;
+  vector<vector<double>> polygon;
+  vector<vector<double>> tile_control_points;
+
+  perimeter_(u0, getDform(), du, N, getTileScale(), &boundary_ids, &polygon,
+             &tile_control_points);
+
+  return polygon;
+}
+
 bool Colloid::isMotifInside(const int N = 20) {
   /**
    * Test if the motif is inside the tile boundary.
@@ -521,15 +635,7 @@ bool Colloid::isMotifInside(const int N = 20) {
     throw customException("must assign assign tile and motif first");
   }
 
-  const double du = (1.0 - 0.0) / N;
-  const vector<double> u0(getTile().numEdgeShapes(), 0.0);
-
-  vector<int> boundary_ids;
-  vector<vector<double>> polygon;
-  vector<vector<double>> tile_control_points;
-
-  perimeter_(u0, getDform(), du, N - 1, getTileScale(), &boundary_ids, &polygon,
-             &tile_control_points);
+  vector<vector<double>> polygon = buildTilePolygon(N);
 
   // Check each point in motif
   const vector<vector<double>> c = m_.getCoords();
@@ -559,16 +665,8 @@ double Colloid::fractionMotifInside(const int N = 20) {
     throw customException("must assign assign tile and motif first");
   }
 
-  const double du = (1.0 - 0.0) / N;
-  const vector<double> u0(getTile().numEdgeShapes(), 0.0);
   double outside = 0.0;
-
-  vector<int> boundary_ids;
-  vector<vector<double>> polygon;
-  vector<vector<double>> tile_control_points;
-
-  perimeter_(u0, getDform(), du, N - 1, getTileScale(), &boundary_ids, &polygon,
-             &tile_control_points);
+  vector<vector<double>> polygon = buildTilePolygon(N);
 
   // Check each point in motif
   const vector<vector<double>> c = m_.getCoords();
@@ -644,6 +742,12 @@ void Colloid::buildBoundary_() {
    * points and 1 "stop codon" on each edge.
    */
 
+  if (!tile_assigned_) { // Makes sure the tile has been assigned
+    throw customException(
+        "must assign tile before building boundary");
+  }
+
+  // Place one extra stop codon for now and choose which to use later
   perimeter_(getU0(), getDform(), getDU(), 1 + 4 + 1, getTileScale(), &boundary_ids_,
              &boundary_coords_, &tile_control_points_);
 }
@@ -679,7 +783,8 @@ void Colloid::perimeter_(vector<double> u0, vector<double> df, double du, int n,
    * defining the edges. 
    */
 
-  // Put points on perimeter (this returns stop codons AND control points)
+  // Put points on perimeter (this returns stop codons AND control points).
+  // Performs checks that u0 and df consistent with tile.
   vector<vector<dvec2>> edges = perimeter_edges_(u0, df, du, n, scale);
 
   // Iterate over the edges of a single tile, asking the tiling to
@@ -894,6 +999,11 @@ void Colloid::initMotif_(double max_scale_factor = 5.0,
    * @throws customException if initialization fails for any reason.
    */
 
+  if (!tile_assigned_) { // Makes sure the tile has been assigned
+    throw customException(
+        "must assign tile before initializing motif");
+  }
+
   if (isTileFundamental()) {
     // If no restrictions, place motif COM on tile COM and shrink/expand to fit.
     // Tactile default parameters provide convenient, convex, starting points
@@ -1000,6 +1110,11 @@ vector<vector<dvec2>> Colloid::perimeter_edges_(vector<double> u0, vector<double
    * CP_right], while for I and J: [CP_left, c1=STOP, c2, ..., c_n=STOP, 
    * CP_right]. Points ascend from CP_left to CP_right.
    */
+
+  if (!tile_assigned_) { // Makes sure the tile has been assigned
+    throw customException(
+        "must assign tile before building perimeter");
+  }
 
   // Create a vector to hold some edge shapes.  The tiling tells you
   // how many distinct edge shapes you need, but doesn't know anything
@@ -1191,7 +1306,7 @@ void Colloid::dump(const string filename) {
     if (built_) {
       j["Properties"] = {{"boundary_ids", boundary_ids_},
                          {"boundary_coords", boundary_coords_},
-                         {"sphere_deform", getDform()},
+                         {"edge_df", getDform()},
                          {"edge_du", getDU()},
                          {"edge_u0", getU0()},
                          {"tile_scale", getTileScale()},

@@ -38,6 +38,7 @@ using glm::transpose;
 using std::ifstream;
 using std::map;
 using std::ofstream;
+using std::stringstream;
 using std::string;
 using std::vector;
 
@@ -53,7 +54,7 @@ using json = nlohmann::json;
 class Colloid {
  public:
   Colloid();
-  Colloid(Motif m, IsohedralTiling t, vector<double> tile_u0, vector<double> edge_df, bool debug=false);
+  Colloid(Motif m, IsohedralTiling t, vector<double> tile_u0, vector<double> edge_df, const double du=0.1, bool debug=false);
   ~Colloid();
 
   vector<double> unscale_coords_(const vector<double>& scaled_coords);
@@ -92,13 +93,13 @@ class Colloid {
   vector<double> boundaryCOM();
 
   void setU0(const vector<double> u0) { edge_u0_ = u0; }
-  const vector<double> getU0() const { return edge_u0_; }
+  const vector<double> getU0();
 
   void setDform(const vector<double> df) { edge_df_ = df; }
-  const vector<double> getDform() const { return edge_df_; }
+  const vector<double> getDform();
 
   void setDU(const double du) { edge_du_ = du; }
-  const double getDU() const { return edge_du_; }
+  const double getDU();
 
   void unitCell(vector<vector<double>>* coords, vector<string>* types,
                 vector<vector<double>>* box, const int nx, const int ny);
@@ -106,6 +107,8 @@ class Colloid {
   vector<vector<double>> getBoundaryCoords() const { return boundary_coords_; }
   vector<int> getBoundaryIds() const { return boundary_ids_; }
   vector<vector<double>> getTileControlPoints() const { return tile_control_points_; }
+
+  const vector<vector<double>> buildTilePolygon(const int N);
 
  private:
   void defaults_();
@@ -124,8 +127,7 @@ class Colloid {
   bool motif_assigned_;  // Has the motif been assigned yet?
   bool built_;           // Has the colloid been constructed at least once?
 
-  //double sphere_deform_;  // Normalized amount a sphere "deforms" the edge.
-  vector<double> edge_df_; 
+  vector<double> edge_df_; // How much each edge is deflected (Bezier)
   vector<double>
       edge_u0_;  // Parameterized (Bezier) starting point for boundary points.
 
