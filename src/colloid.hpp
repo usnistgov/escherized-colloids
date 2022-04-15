@@ -108,7 +108,8 @@ class Colloid {
   vector<int> getBoundaryIds() const { return boundary_ids_; }
   vector<vector<double>> getTileControlPoints() const { return tile_control_points_; }
 
-  const vector<vector<double>> buildTilePolygon(const int N);
+  const int countIntersections(const int N=10);
+  const vector<vector<dvec2>> buildTilePolygon(const int N);
 
  private:
   void defaults_();
@@ -119,7 +120,8 @@ class Colloid {
   void perimeter_(vector<double> u0, vector<double> df, double du, int n, double scale,
                   vector<int>* boundary_ids,
                   vector<vector<double>>* boundary_coords,
-                  vector<vector<double>>* tile_control_points);
+                  vector<vector<double>>* tile_control_points,
+                  vector<vector<dvec2>>* polygon);
   vector<vector<dvec2>> perimeter_edges_(vector<double> u0, vector<double> df, double du, int n,
                                          double scale);
 
@@ -131,7 +133,7 @@ class Colloid {
   vector<double>
       edge_u0_;  // Parameterized (Bezier) starting point for boundary points.
 
-  double edge_du_;        // Parameterized (Bezier) gap between boundary points.
+  double edge_du_;       // Parameterized (Bezier) gap between boundary points.
   double tile_scale_;  // The default Tactile tile is isotropically scaled by
                        // this factor.
 

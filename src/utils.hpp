@@ -14,14 +14,22 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <algorithm>
+
+#include "tiling.hpp" // Cannot provide absolute reference due to complications during compile time with Tactile library files
 
 using std::endl;
 using std::exception;
 using std::ofstream;
 using std::string;
 using std::vector;
+using std::min;
+using std::max;
+
+using glm::dvec2;
 
 #define EXIT_FAILURE 1
+#define PIP_INF 1000000
 
 // Isohedral tile types that are fundamental domains of crystals.
 const int FD_TYPES[46] = {1,  2,  3,  4,  5,  6,  7,  21, 22, 23, 24, 25,
@@ -53,5 +61,11 @@ const double tile_mirror_alignment(const vector<double>& p0,
                                    const vector<double>& p1);
 
 double thetaBounds(const double theta);
+
+const int commonVertices(const dvec2 p1, const dvec2 q1, const dvec2 p2, const dvec2 q2, const double tol = 1.0e-12);
+const bool onSegment(const dvec2 p, const dvec2 q, const dvec2 r);
+const int orientation(const dvec2 p, const dvec2 q, const dvec2 r);
+const bool doIntersect(const dvec2 p1, const dvec2 q1, const dvec2 p2, const dvec2 q2);
+const bool isInside(const vector<vector<dvec2>>& polygon, const dvec2& point);
 
 #endif  // SRC_UTILS_HPP_

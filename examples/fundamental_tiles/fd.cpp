@@ -35,14 +35,14 @@ int main( int argc, char **argv )
 					
 					// Create tile
 					vector<double> u0(t.numEdgeShapes(), 0.25);
-					vector<double> df(t.numEdgeShapes(), 0.5);
-					Colloid c(m, t, u0, df);
+					vector<double> df(t.numEdgeShapes(), 0.0); // No curvature
+					Colloid c(m, t, u0, df, 0.1, false);
 					stringstream ss, tt;
 					ss << "colloid_" << int(ih_type) << ".xyz";
 					c.dumpXYZ(ss.str(), true);
 					tt << "colloid_" << int(ih_type) << ".json";
 					c.dump(tt.str());
-				} catch (customException &e) {
+				} catch (const customException &e) {
 					std::cout << "Error for tile type " << int(ih_type) << " : " << e.getMessage() << std::endl;
 					
 

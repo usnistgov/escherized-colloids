@@ -91,6 +91,7 @@ int main()
 		data.c->setU0(u0);
 		data.c->setDform(df);
 		data.c->setDU(0.1);
+		data.c->setTileScale(1.0);
 		data.c->init();
 		x_1 = data.c->getParameters(); // Initial guess is result after initialization
 	} catch ( const exception& e ) {
@@ -134,7 +135,7 @@ int main()
 	ub(9) = 0.5;
 	ub(10) = 0.5;
 	
-	ub(11) = 1.5*x_1[x_1.size()-1]; // Tile scale - use a factor on the initial scale found
+	ub(11) = 2.0*x_1[x_1.size()-1]; // Tile scale - use a factor on the initial scale found
 
 	optim::algo_settings_t settings_1;
 	

@@ -118,11 +118,11 @@ int main( int argc, char **argv )
 	try {
 		vector<double> u0(t.numEdgeShapes(), 0.1);
 		vector<double> df(t.numEdgeShapes(), 0.25);
-		Colloid c(m, t, u0, df);
+		Colloid c(m, t, u0, df, 0.1, true);
 		c.dump("colloid.json");
 		c.dumpXYZ("colloid.xyz", false);
-	} catch ( const exception& e ) {
-		cout << e.what();
+	} catch ( const customException& e ) {
+		cout << e.getMessage() << std::endl;
 		return -1;
 	}
 

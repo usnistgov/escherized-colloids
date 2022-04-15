@@ -43,7 +43,8 @@ class FundamentalTileTest : public ::testing::Test {
     stringstream tt;
     tt << prefix << "c1_random.json";
     m.load(tt.str());
-    Colloid c(m, t, 0.25);
+    vector<double> u0(t.numEdgeShapes(), 0.25), df(t.numEdgeShapes(), 0.0);
+    Colloid c(m, t, u0, df, 0.1, false);
 
     ASSERT_EQ(reference->isTileFundamental(), true);
     ASSERT_EQ(c.isTileFundamental(), true);
@@ -81,6 +82,9 @@ class FundamentalTileTest : public ::testing::Test {
       EXPECT_EQ(d1[i], d2[i]);
     }
 
+    ASSERT_FLOAT_EQ(c.getDU(), reference->getDU());
+    ASSERT_FLOAT_EQ(c.getTileScale(), reference->getTileScale());
+
     // Check motif information
     b1 = c.getMotif().getCoords();
     b2 = reference->getMotif().getCoords();
@@ -98,7 +102,13 @@ class FundamentalTileTest : public ::testing::Test {
       EXPECT_EQ(s1[i].compare(s2[i]), 0);
     }
 
-    EXPECT_EQ(c.getMotif().getSymmetry().compare(reference->getMotif().getSymmetry()), 0);
+    p1 = c.getMotif().getParameters(), p2 = reference->getMotif().getParameters();
+    ASSERT_EQ(p1.size(), p2.size());
+    for (unsigned int i=0; i < p1.size(); ++i) {
+      EXPECT_FLOAT_EQ(p1[i], p2[i]);
+    }
+
+    ASSERT_EQ(c.getMotif().getSymmetry().compare(reference->getMotif().getSymmetry()), 0);
   }
 };
 

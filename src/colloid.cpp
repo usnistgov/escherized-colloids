@@ -20,33 +20,6 @@ double mod(double x, double v) {
   return y;
 }
 
-bool pip(const vector<vector<double>>& polygon, const vector<double>& point) {
-  /**
-   * Check if a point is inside a polygon.
-   *
-   * In particular, this code is based on the discussion found at
-   * https://stackoverflow.com/questions/11716268/point-in-polygon-algorithm.
-   *
-   * @param polygon Matrix of (x,y) coordinates of polygon's vertices.
-   * @param point Coordinate to check.
-   *
-   * @returns Boolean indicating if `point` is inside `polygon`.
-   */
-
-  bool c = false;
-  for (size_t i = 0, j = polygon.size() - 1; i < polygon.size(); j = i++) {
-    if (((polygon[i][1] >= point[1]) != (polygon[j][1] >= point[1])) &&
-        (point[0] <= (polygon[j][0] - polygon[i][0]) *
-                             (point[1] - polygon[i][1]) /
-                             (polygon[j][1] - polygon[i][1]) +
-                         polygon[i][0])) {
-      c = !c;
-    }
-  }
-
-  return c;
-}
-
 dvec2 bezier(dvec2 p0, dvec2 p1, dvec2 p2, dvec2 p3, double u) {
   /**
    * Compute parameterized location along a Bezier curve.
@@ -597,25 +570,68 @@ const IsohedralTiling Colloid::getTile() {
   }
 }
 
-const vector<vector<double>> Colloid::buildTilePolygon(const int N) {
+const int Colloid::countIntersections(const int N) {
   /**
    * Approximate the tile's boundary as a polygon with a discrete
-   * number of points on each edge.
+   * number of points on each edge and count the number of interecting
+   * line segments.
+   *
+   * @param Number of points to discretize each edge into.
+   *
+   * @returns The total number of intersecting pairs of line segments.
    */
-  const double du = (1.0 - 0.0) / N;
-  const vector<double> u0(getTile().numEdgeShapes(), 0.0);
+
+  // Build the perimeter
+  vector<vector<dvec2>> polygon = buildTilePolygon(N);
+
+  /*const double du = (1.0 - 0.0) / N; 
+  const vector<double> u0(getTile().numEdgeShapes(), 0.0); // Start from 0
 
   vector<int> boundary_ids;
-  vector<vector<double>> polygon;
+  vector<vector<double>> boundary_coords;
   vector<vector<double>> tile_control_points;
+  vector<vector<dvec2>> polygon;
 
-  perimeter_(u0, getDform(), du, N, getTileScale(), &boundary_ids, &polygon,
-             &tile_control_points);
+  perimeter_(u0, getDform(), du, N, getTileScale(), &boundary_ids, &boundary_coords,
+             &tile_control_points, &polygon);*/
 
-  return polygon;
+  // Compare each line segment to all other line segments
+  dvec2 p1, q1, p2, q2;
+  int total = 0;
+  for (unsigned int edge_idx=0; edge_idx < polygon.size(); ++edge_idx) {
+    for (unsigned int i=0; i < polygon[edge_idx].size()-1; ++i) {
+      // First segment
+      p1 = polygon[edge_idx][i];
+      q1 = polygon[edge_idx][i+1];
+
+      for (unsigned int comp_idx=edge_idx; comp_idx < polygon.size(); ++comp_idx) {
+        // Compare to other segments on this edge and other edges
+        unsigned int start = 0; // On different edge, look at all segments
+        if (comp_idx == edge_idx) {
+          start = i+1; // On same edge, look only at "future" segments (+1).
+        }
+        for (unsigned int j=start; j < polygon[comp_idx].size()-1; ++j) {
+          p2 = polygon[comp_idx][j];
+          q2 = polygon[comp_idx][j+1];
+
+          int v = commonVertices(p1, q1, p2, q2);
+          if (v == 0) { // If 1 vertex is shared, do not count as intersection
+            if (doIntersect(p1, q1, p2, q2)) {
+              total++;
+            }
+          } else if (v == 2) {
+            // If 2 vertices are shared, this is the same segment and is an error
+            throw customException("cannot check intersection, segments are identical");
+          }
+        }
+      }
+    }
+  }
+
+  return total;
 }
 
-bool Colloid::isMotifInside(const int N = 20) {
+bool Colloid::isMotifInside(const int N = 10) {
   /**
    * Test if the motif is inside the tile boundary.
    *
@@ -635,17 +651,42 @@ bool Colloid::isMotifInside(const int N = 20) {
     throw customException("must assign assign tile and motif first");
   }
 
-  vector<vector<double>> polygon = buildTilePolygon(N);
+  vector<vector<dvec2>> polygon = buildTilePolygon(N);
 
   // Check each point in motif
   const vector<vector<double>> c = m_.getCoords();
   for (size_t i = 0; i < c.size(); ++i) {
-    if (!pip(polygon, c[i])) {
+    dvec2 point = {c[i][0], c[i][1]};
+    if (!isInside(polygon, point)) {
       return false;
     }
   }
 
   return true;
+}
+
+const vector<vector<dvec2>> Colloid::buildTilePolygon(const int N) {
+  /**
+   * Build a set of edges that create a polygonal approximation of the tile.
+   * This places a total of N points evenly (in Bezier parameterization) along each edge.
+   */
+
+  // 0 -- p_1 -- p_2 -- ... p_(n-2) -- 1
+  // Place N points between ends of the edge - space evenly
+  assert(N > 2); // N refers to total and there are always 2 endpoints
+  const double du = (1.0 - 0.0) / (N-1); // Bezier ends are at 0 and 1, place these
+  const vector<double> u0(getTile().numEdgeShapes(), du); // Start placing from du
+
+  vector<int> boundary_ids;
+  vector<vector<double>> boundary_coords;
+  vector<vector<double>> tile_control_points;
+  vector<vector<dvec2>> polygon;
+
+  // Place N-2 points between the ends
+  perimeter_(u0, getDform(), du, N-2, getTileScale(), &boundary_ids, &boundary_coords,
+             &tile_control_points, &polygon);
+
+  return polygon;
 }
 
 double Colloid::fractionMotifInside(const int N = 20) {
@@ -666,12 +707,13 @@ double Colloid::fractionMotifInside(const int N = 20) {
   }
 
   double outside = 0.0;
-  vector<vector<double>> polygon = buildTilePolygon(N);
+  vector<vector<dvec2>> polygon = buildTilePolygon(N);
 
   // Check each point in motif
   const vector<vector<double>> c = m_.getCoords();
   for (size_t i = 0; i < c.size(); ++i) {
-    if (!pip(polygon, c[i])) {
+    dvec2 point = {c[i][0], c[i][1]};
+    if (!isInside(polygon, point)) {
       outside += 1.0;
     }
   }
@@ -748,14 +790,16 @@ void Colloid::buildBoundary_() {
   }
 
   // Place one extra stop codon for now and choose which to use later
+  vector<vector<dvec2>> polygon;
   perimeter_(getU0(), getDform(), getDU(), 1 + 4 + 1, getTileScale(), &boundary_ids_,
-             &boundary_coords_, &tile_control_points_);
+             &boundary_coords_, &tile_control_points_, &polygon);
 }
 
 void Colloid::perimeter_(vector<double> u0, vector<double> df, double du, int n, double scale,
                          vector<int>* boundary_ids,
                          vector<vector<double>>* boundary_coords,
-                         vector<vector<double>>* tile_control_points) {
+                         vector<vector<double>>* tile_control_points,
+                         vector<vector<dvec2>>* polygon) {
   /**
    * Compute points along the tile's perimeter.
    *
@@ -777,10 +821,13 @@ void Colloid::perimeter_(vector<double> u0, vector<double> df, double du, int n,
    * @param[in] scale The default Tactile tile is isotropically scaled by this
    * factor.
    * @param[out] boundary_ids Chemical identities (integers > 0) of boundary
-   * points.  These are listed in ascending order from 1 up, without gap.
+   * points. These are listed in ascending order from 1 up, without gap.
    * @param[out] boundary_coords Coordinates of points on tile's boundary.
-   * @param[out] tile_control_points Control points from the ends of Bezier curves 
-   * defining the edges. 
+   * @param[out] tile_control_points Terminal control points from the ends of Bezier  
+   * curves defining the edges. 
+   * @param[out] polygon For each edge ("part") consecutive points (including ends) 
+   * are given. This includes the points placed + 2 (one for each endpoint / terminal 
+   * control point). Edges do not necessarily have the same orientation.
    */
 
   // Put points on perimeter (this returns stop codons AND control points).
@@ -794,7 +841,9 @@ void Colloid::perimeter_(vector<double> u0, vector<double> df, double du, int n,
   // for S and U.
   vector<int> identity, cp_idx;
   vector<dvec2> shape;
+  polygon->clear();
   for (auto i : tile_.parts()) {
+    polygon->resize(polygon->size()+1);
     vector<int> pattern; // e.g., [-1, 0, {1, 2, 3, ...}, 0, -1] where -1 = CP, 0 = SC
 
     // Get the relevant edge shape created above using i->getId().
@@ -835,6 +884,7 @@ void Colloid::perimeter_(vector<double> u0, vector<double> df, double du, int n,
       cp_idx.push_back(identity.size()-1);
       for (size_t idx = 0; idx < ed.size(); ++idx) { // 1
         shape.push_back(T * dvec3(ed[ed.size() - 1 - idx], 1.0 * scale));
+        polygon->back().push_back(shape.back());
       }
       for (size_t idx = 0; idx < pattern.size(); ++idx) {
         identity.push_back(pattern[pattern.size() - 1 - idx]);
@@ -846,6 +896,7 @@ void Colloid::perimeter_(vector<double> u0, vector<double> df, double du, int n,
       cp_idx.push_back(identity.size()-1);
       for (size_t idx = 0; idx < ed.size(); ++idx) { // 1
         shape.push_back(T * dvec3(ed[idx], 1.0 * scale));
+        polygon->back().push_back(shape.back());
       }
       for (size_t idx = 0; idx < pattern.size(); ++idx) {
         identity.push_back(pattern[idx]);
@@ -858,7 +909,9 @@ void Colloid::perimeter_(vector<double> u0, vector<double> df, double du, int n,
   // Tactile does not seem to provide an orientation-consistent method of
   // figuring out the ends of the Bezier curves naturally; the edges are
   // traversed in this order, though, so we can use this to infer the
-  // order of the points.
+  // order of the points. If a better way is found this can be replaced.
+  // This order is needed to compute the tile area correctly.  Other things
+  // like isMotifInside() to not need this ordering.
 
   // Get control points at the "ends" of edges in counterclockwise order
   int iter = 0, edge_idx = 0;
@@ -922,7 +975,7 @@ void Colloid::perimeter_(vector<double> u0, vector<double> df, double du, int n,
         boundary_ids->push_back(identity[j] - adjust[identity[j]]);
         ++skip;
       } else if (identity[j] == 0) {
-        ++skip;
+        ++skip; // Skip every other stop codon in fixed orientation
       } else {
         boundary_coords->push_back(c);
         boundary_ids->push_back(identity[j] - adjust[identity[j]]);
@@ -941,7 +994,7 @@ vector<int> unique_(const vector<dvec2>& shape, const vector<int>& idx, const do
     for (unsigned int j=0; j < idx.size(); ++j) {
       if (i != j) {
         double d2 = pow(shape[idx[i]].x - shape[idx[j]].x, 2) + pow(shape[idx[i]].y - shape[idx[j]].y, 2);
-        if (d2 < eps) {
+        if (d2 < eps*eps) {
           u.pop_back();
           break;
         }
@@ -973,8 +1026,8 @@ void new_idx_(const vector<dvec2>& shape, vector<int>& last_edge, vector<int>& c
   throw customException("unable to find overlapping point");
 }
 
-void Colloid::initMotif_(double max_scale_factor = 5.0,
-                         double min_scale_factor = 0.2, int n_scale_incr = 100,
+void Colloid::initMotif_(double max_scale_factor = 10.0,
+                         double min_scale_factor = 0.1, int n_scale_incr = 1000,
                          int N = 20, bool debug = false) {
   /**
    * Initialize the motif.
@@ -985,6 +1038,10 @@ void Colloid::initMotif_(double max_scale_factor = 5.0,
    * until this initialization is run. If a motif does not fit, then the tile is
    * expanded until it "just fits"; similarly, if it initially fits, the tile is
    * shrunk until it cannot be shrunk any more.
+   *
+   * Note that overlapping tile edges are not accounted for here - only scaling
+   * is performed so it can be wise to start from df = 0 (straight edges) with
+   * the Tactile default shape parameters.
    *
    * @param max_scale_factor Maximum factor to scale the default Tactile tile
    * size to trying to fit the motif inside of it.
@@ -1108,7 +1165,7 @@ vector<vector<dvec2>> Colloid::perimeter_edges_(vector<double> u0, vector<double
    * @returns Discretized points along each edge, including Bezier control
    * points at the ends. For S and U: [CP_left, c1, c2, ..., c_((n-2)/2+1)=STOP, 
    * CP_right], while for I and J: [CP_left, c1=STOP, c2, ..., c_n=STOP, 
-   * CP_right]. Points ascend from CP_left to CP_right.
+   * CP_right]. Points move from CP_left to CP_right.
    */
 
   if (!tile_assigned_) { // Makes sure the tile has been assigned
@@ -1167,7 +1224,7 @@ vector<vector<dvec2>> Colloid::perimeter_edges_(vector<double> u0, vector<double
         assert(n >= 2);
         n_ = (n-2)/2+1; // Only put 1 stop codon at the end
 
-        // Reverse CP order
+        // Reverse CP order - needed for line segments / self-intersection tests
         dummy = cp_left;
         cp_left = cp_right;
         cp_right = dummy;
@@ -1178,7 +1235,7 @@ vector<vector<dvec2>> Colloid::perimeter_edges_(vector<double> u0, vector<double
         assert(n >= 2);
         n_ = (n-2)/2+1; // Only put 1 stop codon at the end
 
-        // Reverse CP order
+        // Reverse CP order - needed for line segments / self-intersection tests
         dummy = cp_left;
         cp_left = cp_right;
         cp_right = dummy;
@@ -1259,7 +1316,7 @@ void Colloid::load(const string filename) {
       setDU(j["Properties"]["edge_du"].get<double>());
       setU0(j["Properties"]["edge_u0"].get<vector<double>>());
       setTileScale(j["Properties"]["tile_scale"].get<double>());
-      setDform(j["Properties"]["sphere_deform"].get<vector<double>>());
+      setDform(j["Properties"]["edge_df"].get<vector<double>>());
       boundary_ids_ = j["Properties"]["boundary_ids"].get<vector<int>>();
       boundary_coords_ =
           j["Properties"]["boundary_coords"].get<vector<vector<double>>>();
