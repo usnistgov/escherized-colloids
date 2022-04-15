@@ -94,7 +94,7 @@ $ bash run.sh # You can change parameters in this file as needed.
 How To
 ======
 
-In the `design/` directory is a jupyter notebook (`Design.ipynb`) which walks the user through the design process.  Briefly, it consists of:
+In the `design/` directory is a [Jupyter](https://jupyter.org/) notebook (`Design.ipynb`) which walks the user through the design process.  Briefly, it consists of:
 
 * Step 1a: Build new motif or decide on one from the `motif_libary/`.  The Jupyter notebook in the `motif_library/` directory illustrates how these are built and saved as JSON files.
 * Step 1b: It can be a good idea to check the point symmetry you have assigned to your motif using pymatgen.  This optional step is illustrated in the Design.ipynb notebook.

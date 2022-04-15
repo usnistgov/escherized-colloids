@@ -15,8 +15,10 @@
 
 struct fn_data {
 	Colloid* c;
+	int verbosity;
 	double A_target;
 	double penalty;
+	double df_min;
 };
 
 double area_error2(const arma::vec& vals_inp, arma::vec* grad_out, void* opt_data)
@@ -36,11 +38,15 @@ double area_error2(const arma::vec& vals_inp, arma::vec* grad_out, void* opt_dat
 		p[i] = vals_inp(i);
 	}
 	try {
-		data->c->setParameters(p);
+		data->c->setParameters(p, data->df_min);
 	} catch ( customException& e) {
 		// Report the error and return a large value to allow the code to try something
-		// else without crashing.
-		std::cerr << e.getMessage() << std::endl;
+		// else without crashing. 
+                // Exceptions can be thrown when a tile is self-intersecting, for example, so 
+                // we highly penalize this configuration and move on.
+                if (data->verbosity > 0) {
+			std::cerr << e.getMessage() << std::endl;
+		}
 		return data->penalty;
 	}
 
@@ -74,8 +80,10 @@ int main()
 {
 	// Data
 	fn_data data;
+	data.verbosity = 0; // Set to > 0 to print error messages / information
 	data.penalty = 1000.0;
 	data.A_target = 0.0; // Minimize the area ("escherization" problem)
+	data.df_min = 0.1; // Enforce a minimum curvature
 
 	// Create a colloid
 	arma::vec x_1;
@@ -114,11 +122,12 @@ int main()
 	lb(7) = 0.1;
 
 	// edge df - again, we have 3 of these values
-	lb(8) = 0.1;
-	lb(9) = 0.1;
-	lb(10) = 0.1;
+	lb(8) = -0.5;
+	lb(9) = -0.5;
+	lb(10) = -0.5;
 
-	lb(11) = 0.5*x_1[x_1.size()-1]; // Tile scale - use a factor on the initial scale found
+	// Tile scale - use a factor on the initial scale found
+	lb(11) = 0.5*x_1[x_1.size()-1]; 
 
 	arma::vec ub = arma::zeros(x_1.size(), 1); // Lower bounds
 	ub(0) = 1.0; // Motif scaled_com_x
@@ -131,22 +140,24 @@ int main()
 	ub(6) = 0.4;
 	ub(7) = 0.4;
 	
-	ub(8) = 0.5; // edge df - again, we have 3 of these values
+	// edge df - again, we have 3 of these values
+	ub(8) = 0.5; 
 	ub(9) = 0.5;
 	ub(10) = 0.5;
 	
-	ub(11) = 2.0*x_1[x_1.size()-1]; // Tile scale - use a factor on the initial scale found
+	// Tile scale - use a factor on the initial scale found
+	ub(11) = 2.0*x_1[x_1.size()-1]; 
 
 	optim::algo_settings_t settings_1;
 	
 	settings_1.vals_bound = true; 
 	settings_1.lower_bounds = lb;
 	settings_1.upper_bounds = ub;
- 	settings_1.print_level = 0;
+ 	settings_1.print_level = 2;
 
-	settings_1.pso_settings.center_particle = false;
+	settings_1.pso_settings.center_particle = true; //false;
 	settings_1.pso_settings.n_pop = 5000; // population size of each generation.
-	settings_1.pso_settings.n_gen = 10; // number of vectors to generate (iterations).
+	settings_1.pso_settings.n_gen = 50; // number of vectors to generate (iterations).
  
 	bool success_1 = optim::pso(x_1, area_error2, &data, settings_1);
  

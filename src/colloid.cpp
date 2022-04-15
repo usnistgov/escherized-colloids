@@ -208,7 +208,7 @@ vector<double> Colloid::scale_coords_(const vector<double>& unscaled_coords) {
   return scaled;
 }
 
-void Colloid::setParameters(const vector<double>& params) {
+void Colloid::setParameters(const vector<double>& params, const double df_min) {
   /**
    * Assign all parameters defining the colloid.
    *
@@ -223,13 +223,21 @@ void Colloid::setParameters(const vector<double>& params) {
    * uses reduced units since it knows about the tile and means that these
    * variables can be given reasonable bounds to an optimizer in advance.
    *
-   * Note that if |df| is too close to 0 it is adjusted to a non-zero value
-   * of the same sign.  This is to enforce that edges SHOULD have curvature
-   * if possible.
+   * The following checks are performed and will throw an exception if unmet:
+   * 1. "Patch" of decorations falls on the Bezier curve between [0, 1).
+   * 2. |df| >= df_min. This is to enforce that edges SHOULD have curvature.
+   * 3. tile_scale > 0.
+   * 4. Tile should not be self-intersecting.
+   *
+   * Note: A colloid can be instantiated with such parameters (which can be helpful
+   * for initialization, e.g., with straight edges so df = 0), but setParameters()
+   * is used during optimizations so this is where we enforce such considerations.
    *
    * @param params Parameter vector described above.
+   * @param df_min Minimum magnitude of df allowed for an edge. 
    *
-   * @throws customException if tile or motif has not been assigned yet.
+   * @throws customException if tile or motif has not been assigned yet or
+   * any of the parameters are invalid (e.g., |df| < df_min, or tile_scale < 0).
    */
 
   if (!motif_assigned_ ||
@@ -251,14 +259,14 @@ void Colloid::setParameters(const vector<double>& params) {
   }
   tile_.setParameters(tile_params);
 
-  // A few sanity checks:
+  // A few validity checks:
 
-  // 1. Make sure u0 + du*(N-1) < 1-du/2, i.e., when you place the decorations they
+  // 1a. Make sure u0 + du*(N-1) < 1-du/2, i.e., when you place the decorations they
   // do not go past the "end" of the bezier curve.  For S and U edges, I have
   // doubled du (since each Bezier curve is a "part", or half, of a tile edge)
   // to more consistently space points with respect to I and J edges.
 
-  // 2. For consistency, we also check that u0 > du/2. "du" may be thought of as the
+  // 1b. For consistency, we also check that u0 > du/2. "du" may be thought of as the
   // diameter of the circular decoration.
 
   // The net valid range is du/2 <= u0 <= 1-5*du-du/2; e.g., 0.05 < u0 < 0.45 if du = 0.1.
@@ -302,30 +310,29 @@ void Colloid::setParameters(const vector<double>& params) {
   }
   setU0(u0_params);
 
-  // 3. Check df != 0 (can be positive or negative though)
-  // To practically allow the optimizer to change signs, set a gap near 0 which is "off limits"
-  const double df_tol = 0.05; // This manual tolerance seems large, but a reasonable |df| is >0.1.
+  // 2. Check |df| > df_min
+  // To practically allow the optimizer to change signs, just set a gap near 0 which is "off limits"
   vector<double> df_params(params.begin()+3+tile_.numParameters()+tile_.numEdgeShapes(), params.begin()+3+tile_.numParameters()+2*tile_.numEdgeShapes());
   for (unsigned int i=0; i < df_params.size(); ++i) {
-    if ( (df_params[i] > 0) && (df_params[i] < df_tol) ) {
-      df_params[i] = df_tol;
+    if (fabs(df_params[i]) < fabs(df_min)) {
+      throw customException("|df| is too small");
     }
-    if ( (df_params[i] < 0) && (df_params[i] > df_tol) ) {
-      df_params[i] = -df_tol;
-    }
-    /*if (fabs(df_params[i]) < df_tol) { 
-      stringstream ss;
-      ss << "|df| (" << fabs(df_params[i]) << ") is less than tolerance (" << df_tol << ")";
-      throw customException(ss.str());
-    }*/
   }
   setDform(df_params);
 
-  // 4. Check scale is > 0
+  // 3. Check scale is > 0
   if (params[params.size()-1] <= 0.0) {
     throw customException("tile scale must be positive");
   }
   setTileScale(params[params.size()-1]);
+
+  // 4. Check if the tile is self-intersecting
+  const int intersections = countIntersections(10);
+  if (intersections > 0) {
+    stringstream ss;
+    ss << "tile has " << intersections << " self-intersections";
+    throw customException(ss.str());
+  }
 
   // Build boundary (need updated tile_control_points_) before computing scaled
   // coordinates
@@ -583,17 +590,6 @@ const int Colloid::countIntersections(const int N) {
 
   // Build the perimeter
   vector<vector<dvec2>> polygon = buildTilePolygon(N);
-
-  /*const double du = (1.0 - 0.0) / N; 
-  const vector<double> u0(getTile().numEdgeShapes(), 0.0); // Start from 0
-
-  vector<int> boundary_ids;
-  vector<vector<double>> boundary_coords;
-  vector<vector<double>> tile_control_points;
-  vector<vector<dvec2>> polygon;
-
-  perimeter_(u0, getDform(), du, N, getTileScale(), &boundary_ids, &boundary_coords,
-             &tile_control_points, &polygon);*/
 
   // Compare each line segment to all other line segments
   dvec2 p1, q1, p2, q2;

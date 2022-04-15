@@ -54,7 +54,7 @@ using json = nlohmann::json;
 class Colloid {
  public:
   Colloid();
-  Colloid(Motif m, IsohedralTiling t, vector<double> tile_u0, vector<double> edge_df, const double du=0.1, bool debug=false);
+  Colloid(Motif m, IsohedralTiling t, vector<double> tile_u0, vector<double> edge_df, const double du = 0.1, bool debug=false);
   ~Colloid();
 
   vector<double> unscale_coords_(const vector<double>& scaled_coords);
@@ -65,7 +65,7 @@ class Colloid {
                                const double current_theta, const string suffix,
                                const int induced);
 
-  void setParameters(const vector<double>& params);
+  void setParameters(const vector<double>& params, const double df_min = 0.1);
   const vector<double> getParameters();
 
   void setMotif(Motif m);
@@ -150,8 +150,8 @@ class Colloid {
   Motif m_;               // The colloid's motif.
 };
 
-vector<int> unique_(const vector<dvec2>& shape, const vector<int>& idx, const double eps=1.0e-12);
+vector<int> unique_(const vector<dvec2>& shape, const vector<int>& idx, const double eps = 1.0e-12);
 
-void new_idx_(const vector<dvec2>& shape, vector<int>& last_edge, vector<int>& curr_edge, unsigned int& ov_, unsigned int& new_, const double eps=1.0e-12);
+void new_idx_(const vector<dvec2>& shape, vector<int>& last_edge, vector<int>& curr_edge, unsigned int& ov_, unsigned int& new_, const double eps = 1.0e-12);
 
 #endif  // SRC_COLLOID_HPP_
