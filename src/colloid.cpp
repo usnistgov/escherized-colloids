@@ -339,6 +339,16 @@ void Colloid::setParameters(const vector<double>& params, const double df_min) {
   buildBoundary_();
 
   // Motif - convert scaled to absolute coordinates
+  // Setting the tile parameters, etc. changes the motif's absolute location.
+  // (1) Already set new scale, (2) unscale to get absolute coordinates, then
+  // (3) assign the motif position and orientation, but (4) modify them as
+  // needed to conform to the desired symmetry.  Note that this means the
+  // params passed to setParameters() are NOT necessarily what the true
+  // parameters are; however, the input is uniquely mapped to some new value(s)
+  // so this is reproducible.  Just be aware that the input from say an optimizer
+  // and the resulting colloid might be different because of this change.
+  // Since getParameters() collects information from the motif directly this
+  // should work just fine.
   const vector<double> scaled_coords = {params[0], params[1]};
   const vector<double> us = unscale_coords_(scaled_coords);
   vector<double> motif_params = {us[0], us[1], params[2]};
@@ -376,19 +386,19 @@ void Colloid::constrain_(vector<double>* motif_params) {
     prefix = "d";
     induced = 1;  // S(P|M) = d1
 
-    p0[0] = (tile_control_points_[1][0] - tile_control_points_[0][0]) / 2.0 +
+    p1[0] = (tile_control_points_[1][0] - tile_control_points_[0][0]) / 2.0 +
             tile_control_points_[0][0];
-    p0[1] = (tile_control_points_[1][1] + tile_control_points_[0][1]) / 2.0;
+    p1[1] = (tile_control_points_[1][1] + tile_control_points_[0][1]) / 2.0;
 
-    p1[0] = (tile_control_points_[3][0] - tile_control_points_[2][0]) / 2.0 +
-            tile_control_points_[2][0];
-    p1[1] = (tile_control_points_[3][1] + tile_control_points_[2][1]) / 2.0;
+    p0[0] = (tile_control_points_[3][0] - tile_control_points_[2][0]) / 2.0 +
+           tile_control_points_[2][0];
+    p0[1] = (tile_control_points_[3][1] + tile_control_points_[2][1]) / 2.0;
   } else {
     throw(customException("unrecognized tile type"));
   }
 
   // Perform the revision
-  results = revise_(p0, p1, orig_coords, motif_params->at(2), prefix, induced);
+  results = revise_motif_params_(p0, p1, orig_coords, motif_params->at(2), prefix, induced);
 
   // 3. Re-assign
   motif_params->at(0) = results[0];
@@ -396,14 +406,14 @@ void Colloid::constrain_(vector<double>* motif_params) {
   motif_params->at(2) = results[2];
 }
 
-const vector<double> Colloid::revise_(const vector<double>& p0,
+const vector<double> Colloid::revise_motif_params_(const vector<double>& p0,
                                       const vector<double>& p1,
                                       const vector<double>& orig_coords,
                                       const double current_theta,
                                       const string suffix, const int induced) {
   /**
    * Strategy:
-   * Induced = c(n), place motif at rotation center, no forced rotation
+   * Induced = c(n>1), place motif at rotation center, no forced rotation
    * necessary Induced = d(n>1), place motif at mirror intersection Induced =
    * d(n=1), place motif along the mirror line
    *
@@ -411,16 +421,20 @@ const vector<double> Colloid::revise_(const vector<double>& p0,
    * For d(n>1) could enforce that p0 should be provided such that this should
    * be the motif COM. Similarly, this convention could be helpful for c(n)
    * where p0 should provide the motif COM.
+   *
+   * p0 and p1 are on a mirror line; if d1 they are on the only line; if d(n>1)
+   * p0 should be the mirror intersection point and p1 is a point on the mirror
+   * that defines theta = 0; if c(n > 1) p0 represents the rotation center and 
+   * p1 is ignored.
    */
-  vector<double> unscaled_coords(2, 0), scaled_coords(2, 0);
+  vector<double> projected_coords(2, 0);
   double absolute_theta = 0.0;
 
   if (suffix.compare("d") == 0) {
     // 1. Put motif COM on mirror lines
     if (induced == 1) {
       // If only 1 mirror line we have a DoF in terms of where on that line.
-      unscaled_coords = project_to_line(p0, p1, orig_coords);
-      scaled_coords = scale_coords_(unscaled_coords);
+      projected_coords = project_to_line(p0, p1, orig_coords);
     } else {
       // With multiple mirrors, their intersection defines the COM of the motif
       throw customException("not implemented");
@@ -437,22 +451,17 @@ const vector<double> Colloid::revise_(const vector<double>& p0,
           "motif's reflection symmetry is incompatible with the tile");
     }
     const double curr_theta = thetaBounds(current_theta);
-    double best_angle = 0.0, min_diff = pow(2.0 * M_PI, 2), diff = 0.0,
-           angle = 0.0;
-    for (int i = 0; i <= 2 * n;
-         ++i) {  // Include 2*pi so rounding works correctly
-      angle = i * M_PI / n;
-      diff = pow(angle - curr_theta, 2);
+    double min_diff = pow(2.0 * M_PI, 2), diff = 0.0,
+           allowed_angle = 0.0;
+    for (int i = 0; i < 2 * n;
+         ++i) {
+      allowed_angle = thetaBounds(i * M_PI / n + tile_mirror_alignment(p0, p1));
+      diff = pow(allowed_angle - curr_theta, 2);
       if (diff < min_diff) {
         min_diff = diff;
-        if (i == (2 * n)) {
-          best_angle = 0;  // Correct for 2*pi = 0
-        } else {
-          best_angle = angle;
-        }
+        absolute_theta = allowed_angle;
       }
     }
-    absolute_theta = best_angle + tile_mirror_alignment(p0, p1);
   } else {
     throw customException("not implemented");
 
@@ -463,8 +472,8 @@ const vector<double> Colloid::revise_(const vector<double>& p0,
 
   // 3. Update and return
   vector<double> results(3, 0.0);
-  results[0] = scaled_coords[0];
-  results[1] = scaled_coords[1];
+  results[0] = projected_coords[0];
+  results[1] = projected_coords[1];
   results[2] = absolute_theta;
 
   return results;
@@ -1052,9 +1061,9 @@ void Colloid::initMotif_(double max_scale_factor = 10.0,
    * @throws customException if initialization fails for any reason.
    */
 
-  if (!tile_assigned_) { // Makes sure the tile has been assigned
+  if (!tile_assigned_ || !motif_assigned_) { // Makes sure the tile & motif have been assigned
     throw customException(
-        "must assign tile before initializing motif");
+        "must assign tile and motif before initializing the motif");
   }
 
   if (isTileFundamental()) {
@@ -1129,11 +1138,70 @@ void Colloid::initMotif_(double max_scale_factor = 10.0,
 
     buildBoundary_();  // Re-build based on final tile_scale_
   } else {
-    // 1. Place motif COM and align
-    // For certain IH tiles, the object must have certain conditions
+    // We use setParameters() because internally revisions occur to keep parameters
+    // within constraints determined by symmetry.
 
-    std::cout << "SKIPPING" << std::endl;
-    // throw(customException("this tile type is not yet supported"));
+    // 1. Place motif so its COM is on tile COM
+    vector<double> orig_colloid_params = getParameters();
+    vector<double> curr_params = orig_colloid_params, last_params;
+
+    const vector<double> tile_com = scale_coords_(boundaryCOM());
+    curr_params[0] = tile_com[0];
+    curr_params[1] = tile_com[1];
+    setParameters(curr_params); // setParameters() works in "scaled coordinates"
+    last_params = curr_params;
+
+    // 2. Expand/contract the tile until motif "just" fits
+    double min_scale = getTileScale() * min_scale_factor;
+    double max_scale = getTileScale() * max_scale_factor;
+    double orig_scale = getTileScale();
+    bool found = false;
+    if (isMotifInside(N)) {
+      // Shrink the tile to fit
+      for (int i = 0; i <= n_scale_incr; ++i) {
+        double new_scale =
+            (orig_scale - (orig_scale - min_scale) / n_scale_incr * i);
+        curr_params[curr_params.size()-1] = new_scale;
+        setParameters(curr_params); // No need to changed scaled coords of Motif!
+
+        if (!isMotifInside(N)) {
+          // Move motif back to last position
+          setParameters(last_params);
+          found = true;
+          break;
+        }
+        last_params = curr_params;
+      }
+      if (!found) {
+        if (debug) {
+          buildBoundary_();
+          dumpXYZ("_debug_.xyz", true);
+        }
+        throw(customException("unable to shrink tile around motif"));
+      }
+    } else {
+      // Expand the tile to fit
+      for (int i = 0; i <= n_scale_incr; ++i) {
+        double new_scale = (orig_scale + (max_scale - orig_scale) / n_scale_incr * i);
+        curr_params[curr_params.size()-1] = new_scale;
+        setParameters(curr_params); // No need to changed scaled coords of Motif!
+
+        if (isMotifInside(N)) {
+          // Motif and tile now in acceptable positions
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        if (debug) {
+          buildBoundary_();
+          dumpXYZ("_debug_.xyz", true);
+        }
+        throw(customException("unable to expand tile around motif"));
+      }
+    }
+
+    buildBoundary_();  // Re-build based on final tile_scale_
   }
 
   return;
@@ -1189,12 +1257,12 @@ vector<vector<dvec2>> Colloid::perimeter_edges_(vector<double> u0, vector<double
   double u0_ = 0, du_ = 0;
   int n_ = 0;
 
-  // Canonical Tactile coordinates
-  dvec2 cp_left(0.0, 0.0), cp_right(1.0 * scale, 0.0), dummy;
-
   // Generate edge shapes.
   for (U8 idx = 0; idx < tile_.numEdgeShapes(); ++idx) {
     vector<dvec2> ej;
+
+    // Canonical Tactile coordinates
+    dvec2 cp_left(0.0, 0.0), cp_right(1.0 * scale, 0.0), dummy;
 
     double sphere_deform = df[idx];
 

@@ -24,6 +24,10 @@ class ColloidTest : public ::testing::Test {
   Motif m;
   Colloid* c;
   IsohedralTiling* t;
+
+  void TearDown() override {
+    delete c, t;
+  }
 };
 
 TEST_F(ColloidTest, BuildTilePolygon) {

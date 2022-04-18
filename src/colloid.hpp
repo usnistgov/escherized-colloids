@@ -59,7 +59,7 @@ class Colloid {
 
   vector<double> unscale_coords_(const vector<double>& scaled_coords);
   vector<double> scale_coords_(const vector<double>& unscaled_coords);
-  const vector<double> revise_(const vector<double>& p0,
+  const vector<double> revise_motif_params_(const vector<double>& p0,
                                const vector<double>& p1,
                                const vector<double>& orig_coords,
                                const double current_theta, const string suffix,
