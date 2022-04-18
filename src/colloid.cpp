@@ -379,6 +379,8 @@ void Colloid::constrain_(vector<double>* motif_params) {
   int induced = 0;
   string prefix = "";
 
+  const double jitter = 1.0e-12; // Jitter is used to help numerically protect PIP routine
+
   if (ih_number == 64) {
     // Mirror line in the middle of tile. Tactile has it as a (fixed) vertical
     // line. Motif is assumed to have at least one mirror plane defined by
@@ -387,13 +389,46 @@ void Colloid::constrain_(vector<double>* motif_params) {
     induced = 1;  // S(P|M) = d1
 
     p1[0] = (tile_control_points_[1][0] - tile_control_points_[0][0]) / 2.0 +
-            tile_control_points_[0][0];
-    p1[1] = (tile_control_points_[1][1] + tile_control_points_[0][1]) / 2.0;
+            tile_control_points_[0][0] + jitter;
+    p1[1] = (tile_control_points_[1][1] + tile_control_points_[0][1]) / 2.0 + jitter;
 
     p0[0] = (tile_control_points_[3][0] - tile_control_points_[2][0]) / 2.0 +
-           tile_control_points_[2][0];
-    p0[1] = (tile_control_points_[3][1] + tile_control_points_[2][1]) / 2.0;
+           tile_control_points_[2][0] + jitter;
+    p0[1] = (tile_control_points_[3][1] + tile_control_points_[2][1]) / 2.0 + jitter;
+  } else if (ih_number == 12) {
+    // Mirror line in the middle of tile. Tactile has it as a (fixed) vertical
+    // line. Motif is assumed to have at least one mirror plane defined by
+    // x-axis when at motif.theta_ = 0
+    prefix = "d";
+    induced = 1;  // S(P|M) = d1
+
+    p1[0] = (tile_control_points_[2][0] - tile_control_points_[1][0]) / 2.0 +
+            tile_control_points_[1][0] + jitter;
+    p1[1] = (tile_control_points_[2][1] + tile_control_points_[1][1]) / 2.0 + jitter;
+
+    p0[0] = (tile_control_points_[4][0] - tile_control_points_[5][0]) / 2.0 +
+           tile_control_points_[5][0] + jitter;
+    p0[1] = (tile_control_points_[4][1] + tile_control_points_[5][1]) / 2.0 + jitter;
+  } else if (ih_number == 14) {
+    // Mirror line in the middle of tile. Tactile has it as a (fixed) horizontal
+    // line. Motif is assumed to have at least one mirror plane defined by
+    // x-axis when at motif.theta_ = 0
+    prefix = "d";
+    induced = 1;  // S(P|M) = d1
+
+    p1[1] = (tile_control_points_[5][1] - tile_control_points_[3][1]) / 2.0 +
+            tile_control_points_[3][1] + jitter;
+    p1[0] = (tile_control_points_[3][0] + tile_control_points_[5][0]) / 2.0 + jitter;
+
+    p0[1] = (tile_control_points_[0][1] - tile_control_points_[2][1]) / 2.0 +
+           tile_control_points_[2][1] + jitter;
+    p0[0] = (tile_control_points_[0][0] + tile_control_points_[2][0]) / 2.0 + jitter;
   } else {
+
+    for (int i = 0; i < tile_control_points_.size(); ++i) {
+      std::cout << i << " | " << tile_control_points_[i][0] << ", " << tile_control_points_[i][1] << std::endl;
+    }
+
     throw(customException("unrecognized tile type"));
   }
 
@@ -410,7 +445,7 @@ const vector<double> Colloid::revise_motif_params_(const vector<double>& p0,
                                       const vector<double>& p1,
                                       const vector<double>& orig_coords,
                                       const double current_theta,
-                                      const string suffix, const int induced) {
+                                      const string prefix, const int induced) {
   /**
    * Strategy:
    * Induced = c(n>1), place motif at rotation center, no forced rotation
@@ -426,11 +461,14 @@ const vector<double> Colloid::revise_motif_params_(const vector<double>& p0,
    * p0 should be the mirror intersection point and p1 is a point on the mirror
    * that defines theta = 0; if c(n > 1) p0 represents the rotation center and 
    * p1 is ignored.
+   *
+   * If the tile is incommensurate with the motif symmetry an exception is thrown;
+   * For example, if IH64 (where S(P|M) = d1) and the tile has c(n) symmetry. 
    */
   vector<double> projected_coords(2, 0);
   double absolute_theta = 0.0;
 
-  if (suffix.compare("d") == 0) {
+  if (prefix.compare("d") == 0) {
     // 1. Put motif COM on mirror lines
     if (induced == 1) {
       // If only 1 mirror line we have a DoF in terms of where on that line.
@@ -443,7 +481,7 @@ const vector<double> Colloid::revise_motif_params_(const vector<double>& p0,
     // 2. Round orientation to nearest allowable absolute theta value
     // Simply allow rotations that make mirror lines coincide (mod 2 leaves
     // motif unchanged)
-    const int n = m_.symmetrySuffix(suffix);
+    const int n = m_.symmetrySuffix(prefix);
 
     if ((n % induced != 0) ||
         (n < induced)) {  // n = 0 if no mirror so this catches that
@@ -453,13 +491,13 @@ const vector<double> Colloid::revise_motif_params_(const vector<double>& p0,
     const double curr_theta = thetaBounds(current_theta);
     double min_diff = pow(2.0 * M_PI, 2), diff = 0.0,
            allowed_angle = 0.0;
-    for (int i = 0; i < 2 * n;
+    for (int i = 0; i <= 2 * n;
          ++i) {
-      allowed_angle = thetaBounds(i * M_PI / n + tile_mirror_alignment(p0, p1));
+      allowed_angle = i * M_PI / n + tile_mirror_alignment(p0, p1);
       diff = pow(allowed_angle - curr_theta, 2);
       if (diff < min_diff) {
         min_diff = diff;
-        absolute_theta = allowed_angle;
+        absolute_theta = thetaBounds(allowed_angle);
       }
     }
   } else {
@@ -505,12 +543,12 @@ const vector<double> Colloid::getParameters() {
   vector<double> dummy, rescaled;
   dummy = m_.getParameters();
   for (size_t i = 0; i < 2; ++i) {
-    params_.push_back(dummy[i]);  // Unscaled COM coordinates
+    params_.push_back(dummy[i]); // Unscaled COM coordinates
   }
   rescaled = scale_coords_(params_);
-  params_[0] = rescaled[0];  // scaled_com_x
-  params_[1] = rescaled[1];  // scaled_com_y
-  params_.push_back(dummy[2]);  // theta
+  params_[0] = rescaled[0]; // scaled_com_x
+  params_[1] = rescaled[1]; // scaled_com_y
+  params_.push_back(dummy[2]); // theta
 
   double tile_dummy[tile_.numParameters()];
 
@@ -1035,7 +1073,10 @@ void Colloid::initMotif_(double max_scale_factor = 10.0,
                          double min_scale_factor = 0.1, int n_scale_incr = 1000,
                          int N = 20, bool debug = false) {
   /**
-   * Initialize the motif.
+   * Initialize the motif by isotropically expanding the tile to "just" enclose it.
+   *
+   * Motif orientation is unaffected for FD tiles, however, if there are constraints
+   * from non-FD tiles the motif may be changed to match this.
    *
    * This attempts to place the motif entirely inside the tile's boundary after
    * it has been initialized. The default tile settings from the Tactile library
@@ -1135,8 +1176,6 @@ void Colloid::initMotif_(double max_scale_factor = 10.0,
         throw(customException("unable to expand tile around motif"));
       }
     }
-
-    buildBoundary_();  // Re-build based on final tile_scale_
   } else {
     // We use setParameters() because internally revisions occur to keep parameters
     // within constraints determined by symmetry.
@@ -1200,10 +1239,9 @@ void Colloid::initMotif_(double max_scale_factor = 10.0,
         throw(customException("unable to expand tile around motif"));
       }
     }
-
-    buildBoundary_();  // Re-build based on final tile_scale_
   }
 
+  buildBoundary_();  // Re-build based on final tile_scale_
   return;
 }
 
