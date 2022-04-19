@@ -178,7 +178,7 @@ int main(int argc, char **argv)
 		data.c->setMotif(m);
 		data.c->setTile(t);
 		vector<double> u0(t.numEdgeShapes(), 0.1);
-                vector<double> df(t.numEdgeShapes(), 0.25);
+                vector<double> df(t.numEdgeShapes(), 0.1); 
 		data.c->setU0(u0);
 		data.c->setDform(df);
 		data.c->setDU(0.1);

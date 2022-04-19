@@ -381,6 +381,8 @@ void Colloid::constrain_(vector<double>* motif_params) {
 
   const double jitter = 1.0e-12; // Jitter is used to help numerically protect PIP routine
 
+  // Conventions: p0 -> p1 forms a minimum counterclockwise angle wrt x-axis.
+
   if (ih_number == 64) {
     // Mirror line in the middle of tile. Tactile has it as a (fixed) vertical
     // line. Motif is assumed to have at least one mirror plane defined by
@@ -388,13 +390,13 @@ void Colloid::constrain_(vector<double>* motif_params) {
     prefix = "d";
     induced = 1;  // S(P|M) = d1
 
-    p1[0] = (tile_control_points_[1][0] - tile_control_points_[0][0]) / 2.0 +
-            tile_control_points_[0][0] + jitter;
-    p1[1] = (tile_control_points_[1][1] + tile_control_points_[0][1]) / 2.0 + jitter;
-
     p0[0] = (tile_control_points_[3][0] - tile_control_points_[2][0]) / 2.0 +
            tile_control_points_[2][0] + jitter;
     p0[1] = (tile_control_points_[3][1] + tile_control_points_[2][1]) / 2.0 + jitter;
+
+    p1[0] = (tile_control_points_[1][0] - tile_control_points_[0][0]) / 2.0 +
+            tile_control_points_[0][0] + jitter;
+    p1[1] = (tile_control_points_[1][1] + tile_control_points_[0][1]) / 2.0 + jitter;
   } else if (ih_number == 12) {
     // Mirror line in the middle of tile. Tactile has it as a (fixed) vertical
     // line. Motif is assumed to have at least one mirror plane defined by
@@ -402,13 +404,13 @@ void Colloid::constrain_(vector<double>* motif_params) {
     prefix = "d";
     induced = 1;  // S(P|M) = d1
 
-    p1[0] = (tile_control_points_[2][0] - tile_control_points_[1][0]) / 2.0 +
-            tile_control_points_[1][0] + jitter;
-    p1[1] = (tile_control_points_[2][1] + tile_control_points_[1][1]) / 2.0 + jitter;
-
     p0[0] = (tile_control_points_[4][0] - tile_control_points_[5][0]) / 2.0 +
            tile_control_points_[5][0] + jitter;
     p0[1] = (tile_control_points_[4][1] + tile_control_points_[5][1]) / 2.0 + jitter;
+
+    p1[0] = (tile_control_points_[2][0] - tile_control_points_[1][0]) / 2.0 +
+            tile_control_points_[1][0] + jitter;
+    p1[1] = (tile_control_points_[2][1] + tile_control_points_[1][1]) / 2.0 + jitter;
   } else if (ih_number == 14) {
     // Mirror line in the middle of tile. Tactile has it as a (fixed) horizontal
     // line. Motif is assumed to have at least one mirror plane defined by
@@ -416,13 +418,206 @@ void Colloid::constrain_(vector<double>* motif_params) {
     prefix = "d";
     induced = 1;  // S(P|M) = d1
 
-    p1[1] = (tile_control_points_[5][1] - tile_control_points_[3][1]) / 2.0 +
-            tile_control_points_[3][1] + jitter;
-    p1[0] = (tile_control_points_[3][0] + tile_control_points_[5][0]) / 2.0 + jitter;
-
+    p0[0] = (tile_control_points_[0][0] + tile_control_points_[2][0]) / 2.0 + jitter;
     p0[1] = (tile_control_points_[0][1] - tile_control_points_[2][1]) / 2.0 +
            tile_control_points_[2][1] + jitter;
-    p0[0] = (tile_control_points_[0][0] + tile_control_points_[2][0]) / 2.0 + jitter;
+
+    p1[0] = (tile_control_points_[3][0] + tile_control_points_[5][0]) / 2.0 + jitter;
+    p1[1] = (tile_control_points_[5][1] - tile_control_points_[3][1]) / 2.0 +
+            tile_control_points_[3][1] + jitter;
+  } else if (ih_number == 68) {
+    // Mirror line in the middle of tile. Tactile has it as a (fixed) horizontal
+    // line. Motif is assumed to have at least one mirror plane defined by
+    // x-axis when at motif.theta_ = 0
+    prefix = "d";
+    induced = 1;  // S(P|M) = d1
+
+    p0[0] = tile_control_points_[0][0] + jitter;
+    p0[1] = tile_control_points_[0][1] + jitter;
+
+    p1[0] = tile_control_points_[2][0] + jitter;
+    p1[1] = tile_control_points_[2][1] + jitter;
+  } else if (ih_number == 13) {
+    // Mirror line in the middle of tile. Tactile has it as a (fixed) vertical
+    // line. Motif is assumed to have at least one mirror plane defined by
+    // x-axis when at motif.theta_ = 0
+    prefix = "d";
+    induced = 1;  // S(P|M) = d1
+
+    p0[0] = (tile_control_points_[4][0] - tile_control_points_[5][0]) / 2.0 +
+           tile_control_points_[5][0] + jitter;
+    p0[1] = (tile_control_points_[4][1] + tile_control_points_[5][1]) / 2.0 + jitter;
+
+    p1[0] = (tile_control_points_[2][0] - tile_control_points_[1][0]) / 2.0 +
+            tile_control_points_[1][0] + jitter;
+    p1[1] = (tile_control_points_[2][1] + tile_control_points_[1][1]) / 2.0 + jitter;
+  } else if (ih_number == 15) {
+    // Mirror line in the middle of tile. Tactile has it as a (fixed) horizontal
+    // line. Motif is assumed to have at least one mirror plane defined by
+    // x-axis when at motif.theta_ = 0
+    prefix = "d";
+    induced = 1;  // S(P|M) = d1
+
+    p0[0] = (tile_control_points_[3][0] + tile_control_points_[5][0]) / 2.0 + jitter;
+    p0[1] = (tile_control_points_[3][1] - tile_control_points_[5][1]) / 2.0 +
+           tile_control_points_[5][1] + jitter;
+
+    p1[0] = (tile_control_points_[2][0] + tile_control_points_[0][0]) / 2.0 + jitter;
+    p1[1] = (tile_control_points_[2][1] - tile_control_points_[0][1]) / 2.0 +
+            tile_control_points_[0][1] + jitter;
+  } else if (ih_number == 66) {
+    // Mirror line in the middle of tile. Tactile has it as a (fixed) vertical
+    // line. Motif is assumed to have at least one mirror plane defined by
+    // x-axis when at motif.theta_ = 0
+    prefix = "d";
+    induced = 1;  // S(P|M) = d1
+
+    p0[0] = (tile_control_points_[3][0] - tile_control_points_[2][0]) / 2.0 +
+           tile_control_points_[2][0] + jitter;
+    p0[1] = (tile_control_points_[3][1] + tile_control_points_[2][1]) / 2.0 + jitter;
+
+    p1[0] = (tile_control_points_[1][0] - tile_control_points_[0][0]) / 2.0 +
+            tile_control_points_[0][0] + jitter;
+    p1[1] = (tile_control_points_[1][1] + tile_control_points_[0][1]) / 2.0 + jitter;
+  } else if (ih_number == 69) {
+    // Mirror line in the middle of tile. Tactile has it as a (fixed) horizontal
+    // line. Motif is assumed to have at least one mirror plane defined by
+    // x-axis when at motif.theta_ = 0
+    prefix = "d";
+    induced = 1;  // S(P|M) = d1
+
+    p0[0] = tile_control_points_[1][0] + jitter;
+    p0[1] = tile_control_points_[1][1] + jitter;
+
+    p1[0] = tile_control_points_[3][0] + jitter;
+    p1[1] = tile_control_points_[3][1] + jitter;
+  } else if (ih_number == 26) {
+    // Mirror line in the middle of tile. Tactile has it as a (fixed) horizontal
+    // line. Motif is assumed to have at least one mirror plane defined by
+    // x-axis when at motif.theta_ = 0
+    prefix = "d";
+    induced = 1;  // S(P|M) = d1
+
+    p0[0] = (tile_control_points_[1][0] + tile_control_points_[2][0]) / 2.0 + jitter;
+    p0[1] = (tile_control_points_[1][1] - tile_control_points_[2][1]) / 2.0 +
+           tile_control_points_[2][1] + jitter;
+
+    p1[0] = tile_control_points_[4][0] + jitter;
+    p1[1] = tile_control_points_[4][1] + jitter;
+  } else if (ih_number == 67) {
+    // Mirror line in the middle of tile. Tactile has it as a (fixed) vertical
+    // line. Motif is assumed to have at least one mirror plane defined by
+    // x-axis when at motif.theta_ = 0
+    prefix = "d";
+    induced = 1;  // S(P|M) = d1
+
+    p0[0] = (tile_control_points_[2][0] - tile_control_points_[1][0]) / 2.0 +
+           tile_control_points_[1][0] + jitter;
+    p0[1] = (tile_control_points_[2][1] + tile_control_points_[1][1]) / 2.0 + jitter;
+
+    p1[0] = (tile_control_points_[0][0] - tile_control_points_[3][0]) / 2.0 +
+            tile_control_points_[3][0] + jitter;
+    p1[1] = (tile_control_points_[0][1] + tile_control_points_[3][1]) / 2.0 + jitter;
+  } else if (ih_number == 91) {
+    // Mirror line in the middle of tile. Tactile has it as a (fixed) vertical
+    // line. Motif is assumed to have at least one mirror plane defined by
+    // x-axis when at motif.theta_ = 0
+    prefix = "d";
+    induced = 1;  // S(P|M) = d1
+
+    p0[0] = (tile_control_points_[1][0] - tile_control_points_[0][0]) / 2.0 +
+           tile_control_points_[0][0] + jitter;
+    p0[1] = (tile_control_points_[1][1] + tile_control_points_[0][1]) / 2.0 + jitter;
+
+    p1[0] = tile_control_points_[2][0] + jitter;
+    p1[1] = tile_control_points_[2][1] + jitter;
+  } else if (ih_number == 16) {
+    // Mirror line in the middle of tile. Tactile has it as a (fixed) vertical
+    // line. Motif is assumed to have at least one mirror plane defined by
+    // x-axis when at motif.theta_ = 0
+    prefix = "d";
+    induced = 1;  // S(P|M) = d1
+
+    p0[0] = tile_control_points_[4][0] + jitter;
+    p0[1] = tile_control_points_[4][1] + jitter;
+
+    p1[0] = tile_control_points_[1][0] + jitter;
+    p1[1] = tile_control_points_[1][1] + jitter;
+  } else if (ih_number == 36) {
+    // Mirror line in the middle of tile. Tactile has it as a (fixed) vertical
+    // line. Motif is assumed to have at least one mirror plane defined by
+    // x-axis when at motif.theta_ = 0
+    prefix = "d";
+    induced = 1;  // S(P|M) = d1
+
+    p0[0] = tile_control_points_[1][0] + jitter;
+    p0[1] = tile_control_points_[1][1] + jitter;
+
+    p1[0] = tile_control_points_[3][0] + jitter;
+    p1[1] = tile_control_points_[3][1] + jitter;
+  } else if (ih_number == 29) {
+    // Mirror line in the middle of tile. Tactile has it as a (fixed) vertical
+    // line. Motif is assumed to have at least one mirror plane defined by
+    // x-axis when at motif.theta_ = 0
+    prefix = "d";
+    induced = 1;  // S(P|M) = d1
+
+    p0[0] = (tile_control_points_[4][0] - tile_control_points_[3][0]) / 2.0 +
+           tile_control_points_[3][0] + jitter;
+    p0[1] = (tile_control_points_[4][1] + tile_control_points_[3][1]) / 2.0 + jitter;
+
+    p1[0] = tile_control_points_[1][0] + jitter;
+    p1[1] = tile_control_points_[1][1] + jitter;
+  } else if (ih_number == 71) {
+    // Mirror line along diagonal of tile. Tactile has it as a (fixed) 135 deg
+    // line. Motif is assumed to have at least one mirror plane defined by
+    // x-axis when at motif.theta_ = 0
+    prefix = "d";
+    induced = 1;  // S(P|M) = d1
+
+    p0[0] = tile_control_points_[2][0] + jitter;
+    p0[1] = tile_control_points_[2][1] + jitter;
+
+    p1[0] = tile_control_points_[0][0] + jitter;
+    p1[1] = tile_control_points_[0][1] + jitter;
+  } else if (ih_number == 82) {
+    // Mirror line in the middle of tile. Tactile has it as a (fixed) vertical
+    // line. Motif is assumed to have at least one mirror plane defined by
+    // x-axis when at motif.theta_ = 0
+    prefix = "d";
+    induced = 1;  // S(P|M) = d1
+
+    p0[0] = (tile_control_points_[0][0] - tile_control_points_[2][0]) / 2.0 +
+           tile_control_points_[2][0] + jitter;
+    p0[1] = (tile_control_points_[0][1] + tile_control_points_[2][1]) / 2.0 + jitter;
+
+    p1[0] = tile_control_points_[1][0] + jitter;
+    p1[1] = tile_control_points_[1][1] + jitter;
+  } else if (ih_number == 32) {
+    // Mirror line in the middle of tile. Tactile has it as a (fixed) horizontal
+    // line. Motif is assumed to have at least one mirror plane defined by
+    // x-axis when at motif.theta_ = 0
+    prefix = "d";
+    induced = 1;  // S(P|M) = d1
+
+    p0[0] = tile_control_points_[0][0] + jitter;
+    p0[1] = tile_control_points_[0][1] + jitter;
+
+    p1[0] = tile_control_points_[2][0] + jitter;
+    p1[1] = tile_control_points_[2][1] + jitter;
+  } else if (ih_number == 40) {
+    // Mirror line in the middle of tile. Tactile has it as a (fixed) vertical
+    // line. Motif is assumed to have at least one mirror plane defined by
+    // x-axis when at motif.theta_ = 0
+    prefix = "d";
+    induced = 1;  // S(P|M) = d1
+
+    p0[0] = (tile_control_points_[0][0] - tile_control_points_[2][0]) / 2.0 +
+           tile_control_points_[2][0] + jitter;
+    p0[1] = (tile_control_points_[0][1] + tile_control_points_[2][1]) / 2.0 + jitter;
+
+    p1[0] = tile_control_points_[1][0] + jitter;
+    p1[1] = tile_control_points_[1][1] + jitter;
   } else {
 
     for (int i = 0; i < tile_control_points_.size(); ++i) {
@@ -488,13 +683,20 @@ const vector<double> Colloid::revise_motif_params_(const vector<double>& p0,
       throw customException(
           "motif's reflection symmetry is incompatible with the tile");
     }
-    const double curr_theta = thetaBounds(current_theta);
+    const double curr_theta = thetaBounds(current_theta); // 0 <= t < 2PI
     double min_diff = pow(2.0 * M_PI, 2), diff = 0.0,
            allowed_angle = 0.0;
     for (int i = 0; i <= 2 * n;
          ++i) {
       allowed_angle = i * M_PI / n + tile_mirror_alignment(p0, p1);
-      diff = pow(allowed_angle - curr_theta, 2);
+
+      double min_t = allowed_angle - curr_theta;
+      if (fabs(min_t - 2*M_PI) < fabs(min_t)) {
+        // fabs(allowed_angle - (curr_theta+2*M_PI) < fabs(min_t)
+        min_t -= 2*M_PI;
+      }
+
+      diff = pow(min_t, 2);
       if (diff < min_diff) {
         min_diff = diff;
         absolute_theta = thetaBounds(allowed_angle);
@@ -957,12 +1159,12 @@ void Colloid::perimeter_(vector<double> u0, vector<double> df, double du, int n,
   // like isMotifInside() to not need this ordering.
 
   // Get control points at the "ends" of edges in counterclockwise order
-  int iter = 0, edge_idx = 0;
+  int iter = 0;
   vector<vector<int>> cp_edges;
   for (auto i : tile_.parts()) {  // Iterator goes in counterclockwise edge order from Tactile
     vector<int> edges;
     if (i->getShape() == 1 || i->getShape() == 2) { // S or U edge
-      if ((static_cast<int>(i->getId()) == edge_idx) && (iter > 0)) { // Should be the same as i->isSecondPart()?
+      if (i->isSecondPart()) {
         vector<int> idx = {cp_idx[iter-2], cp_idx[iter-1], cp_idx[iter], cp_idx[iter+1]};
         edges = unique_(shape, idx); // "Delete" the overlapping set of 2 to get edges
         assert(edges.size() == 2);
@@ -972,7 +1174,6 @@ void Colloid::perimeter_(vector<double> u0, vector<double> df, double du, int n,
       edges = {cp_idx[iter], cp_idx[iter+1]};
       cp_edges.push_back(edges); // Save the outer 2 points
     }
-    edge_idx = static_cast<int>(i->getId());
     iter += 2;
   }
 

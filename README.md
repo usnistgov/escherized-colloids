@@ -107,3 +107,4 @@ To Do
 =====
 * Logic and coding for 47 non-FD tiles
 * DoF for 2 Bezier CP on edges
+* Allow initialize with df=0 (specify df_min)
