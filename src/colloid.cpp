@@ -718,6 +718,18 @@ void Colloid::constrain_(vector<double>* motif_params) {
 
     p1[0] = (tile_control_points_[2][0] + tile_control_points_[3][0])/2. + jitter;
     p1[1] = (tile_control_points_[2][1] + tile_control_points_[3][1])/2. + jitter;
+  } else if (ih_number == 20) {
+    // Mirror lines cross in the middle of tile. Tactile has them as fixed lines.
+    // Motif is assumed to have at least one mirror plane defined by
+    // x-axis when at motif.theta_ = 0
+    prefix = "d";
+    induced = 6;  // S(P|M) = d6
+
+    p0[0] = (tile_control_points_[1][0] + tile_control_points_[4][0]) / 2.0 + jitter;
+    p0[1] = (tile_control_points_[1][1] + tile_control_points_[4][1]) / 2.0 + jitter;
+
+    p1[0] = tile_control_points_[4][0] + jitter;
+    p1[1] = tile_control_points_[4][1] + jitter;
   } else {
 
     for (int i = 0; i < tile_control_points_.size(); ++i) {

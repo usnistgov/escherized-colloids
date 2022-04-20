@@ -37,4 +37,15 @@ make clean; make;
 # S(P|M) = d4 Examples
 #./pso -n 76 -m ../../motif_library/d4_square.json;
 
+# S(P|M) = d6 Examples
+#./pso -n 20 -m ../../motif_library/d6_hexagon.json;
+
+# S(P|M) = c2 Examples
+
+# S(P|M) = c3 Examples
+
+# S(P|M) = c4 Examples
+
+# S(P|M) = c6 Examples
+
 # Visualize the output (success.xyz) with any standard molecular visualization program.
