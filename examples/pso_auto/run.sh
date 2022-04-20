@@ -24,6 +24,13 @@ make clean; make;
 #./pso -n 40 -m ../../motif_library/d1_vitruvian.json;
 
 # S(P|M) = d2 Examples
+#./pso -n 72 -m ../../motif_library/d2_dumbbell.json;
+#./pso -n 17 -m ../../motif_library/d2_dumbbell.json;
+#./pso -n 74 -m ../../motif_library/d2_dumbbell.json;
+#./pso -n 73 -m ../../motif_library/d2_dumbbell.json;
+#./pso -n 37 -m ../../motif_library/d2_dumbbell.json;
+
+# S(P|M) = d3 Examples
 
 
 # Visualize the output (success.xyz) with any standard molecular visualization program.

@@ -618,6 +618,70 @@ void Colloid::constrain_(vector<double>* motif_params) {
 
     p1[0] = tile_control_points_[1][0] + jitter;
     p1[1] = tile_control_points_[1][1] + jitter;
+  } else if (ih_number == 72) {
+    // Mirror lines cross in the middle of tile. Tactile has it as a (fixed) vertical
+    // and horizontal lines. Motif is assumed to have at least one mirror plane defined by
+    // x-axis when at motif.theta_ = 0
+    prefix = "d";
+    induced = 2;  // S(P|M) = d2
+
+    p0[0] = (tile_control_points_[0][0] - tile_control_points_[1][0]) / 2.0 +
+           tile_control_points_[1][0] + jitter;
+    p0[1] = (tile_control_points_[0][1] - tile_control_points_[3][1]) / 2.0 +
+           tile_control_points_[3][1] + jitter;
+
+    p1[0] = (tile_control_points_[0][0] + tile_control_points_[3][0]) / 2.0 + jitter;
+    p1[1] = p0[1];
+  } else if (ih_number == 17) {
+    // Mirror lines cross in the middle of tile. Tactile has it as a (fixed) vertical
+    // and horizontal lines. Motif is assumed to have at least one mirror plane defined by
+    // x-axis when at motif.theta_ = 0
+    prefix = "d";
+    induced = 2;  // S(P|M) = d2
+
+    p0[0] = (tile_control_points_[2][0] - tile_control_points_[1][0]) / 2.0 +
+           tile_control_points_[1][0] + jitter;
+    p0[1] = (tile_control_points_[5][1] - tile_control_points_[1][1]) / 2.0 +
+           tile_control_points_[1][1] + jitter;
+
+    p1[0] = tile_control_points_[0][0] + jitter;
+    p1[1] = tile_control_points_[0][1] + jitter;
+  } else if (ih_number == 74) {
+    // Mirror lines cross in the middle of tile. Tactile has it as a (fixed) vertical
+    // and horizontal lines. Motif is assumed to have at least one mirror plane defined by
+    // x-axis when at motif.theta_ = 0
+    prefix = "d";
+    induced = 2;  // S(P|M) = d2
+
+    p0[0] = (tile_control_points_[3][0] + tile_control_points_[1][0]) / 2.0 + jitter;
+    p0[1] = (tile_control_points_[2][1] + tile_control_points_[0][1]) / 2.0 + jitter;
+
+    p1[0] = tile_control_points_[2][0] + jitter;
+    p1[1] = tile_control_points_[2][1] + jitter;
+  } else if (ih_number == 73) {
+    // Mirror lines cross in the middle of tile. Tactile has it as a (fixed) vertical
+    // and horizontal lines. Motif is assumed to have at least one mirror plane defined by
+    // x-axis when at motif.theta_ = 0
+    prefix = "d";
+    induced = 2;  // S(P|M) = d2
+
+    p0[0] = (tile_control_points_[2][0] + tile_control_points_[1][0]) / 2.0 + jitter;
+    p0[1] = (tile_control_points_[1][1] + tile_control_points_[0][1]) / 2.0 + jitter;
+
+    p1[0] = (tile_control_points_[2][0] + tile_control_points_[3][0]) / 2.0 + jitter;
+    p1[1] = (tile_control_points_[2][1] + tile_control_points_[3][1]) / 2.0 + jitter;
+  } else if (ih_number == 37) {
+    // Mirror lines cross in the middle of tile. Tactile has it as a (fixed) vertical
+    // and horizontal lines. Motif is assumed to have at least one mirror plane defined by
+    // x-axis when at motif.theta_ = 0
+    prefix = "d";
+    induced = 2;  // S(P|M) = d2
+
+    p0[0] = (tile_control_points_[3][0] + tile_control_points_[1][0]) / 2.0 + jitter;
+    p0[1] = (tile_control_points_[3][1] + tile_control_points_[1][1]) / 2.0 + jitter;
+
+    p1[0] = tile_control_points_[2][0] + jitter;
+    p1[1] = tile_control_points_[2][1] + jitter;
   } else {
 
     for (int i = 0; i < tile_control_points_.size(); ++i) {
@@ -630,7 +694,7 @@ void Colloid::constrain_(vector<double>* motif_params) {
   // Perform the revision
   results = revise_motif_params_(p0, p1, orig_coords, motif_params->at(2), prefix, induced);
 
-  // 3. Re-assign
+  // 3. Update coordinates and orientation
   motif_params->at(0) = results[0];
   motif_params->at(1) = results[1];
   motif_params->at(2) = results[2];
@@ -653,8 +717,8 @@ const vector<double> Colloid::revise_motif_params_(const vector<double>& p0,
    * where p0 should provide the motif COM.
    *
    * p0 and p1 are on a mirror line; if d1 they are on the only line; if d(n>1)
-   * p0 should be the mirror intersection point and p1 is a point on the mirror
-   * that defines theta = 0; if c(n > 1) p0 represents the rotation center and 
+   * p0 should be the mirror intersection point and p1 is a point on some mirror
+   * that defines a line; if c(n > 1) p0 represents the rotation center and 
    * p1 is ignored.
    *
    * If the tile is incommensurate with the motif symmetry an exception is thrown;
@@ -669,8 +733,9 @@ const vector<double> Colloid::revise_motif_params_(const vector<double>& p0,
       // If only 1 mirror line we have a DoF in terms of where on that line.
       projected_coords = project_to_line(p0, p1, orig_coords);
     } else {
-      // With multiple mirrors, their intersection defines the COM of the motif
-      throw customException("not implemented");
+      // With multiple mirrors, their intersection defines the COM of the motif.
+      // By convention, we have chosen p0 to be that intersection.
+      projected_coords = p0;
     }
 
     // 2. Round orientation to nearest allowable absolute theta value

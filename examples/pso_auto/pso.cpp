@@ -208,7 +208,7 @@ int main(int argc, char **argv)
         }
 
 	// Tile scale - use a factor on the initial scale found
-	lb(3+t.numParameters()+2*t.numEdgeShapes()) = 0.5*x_1[x_1.size()-1]; 
+	lb(3+t.numParameters()+2*t.numEdgeShapes()) = 0.25*x_1[x_1.size()-1]; 
 
 	arma::vec ub = arma::zeros(x_1.size(), 1); // Upper bounds
 	ub(0) = 1.0; // Motif scaled_com_x

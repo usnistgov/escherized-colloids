@@ -26,7 +26,8 @@ class ColloidTest : public ::testing::Test {
   IsohedralTiling* t;
 
   void TearDown() override {
-    delete c, t;
+    delete c;
+    delete t;
   }
 };
 
