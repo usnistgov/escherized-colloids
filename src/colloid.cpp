@@ -682,6 +682,42 @@ void Colloid::constrain_(vector<double>* motif_params) {
 
     p1[0] = tile_control_points_[2][0] + jitter;
     p1[1] = tile_control_points_[2][1] + jitter;
+  } else if (ih_number == 18) {
+    // Mirror lines cross in the middle of tile. Tactile has them as fixed lines.
+    // Motif is assumed to have at least one mirror plane defined by
+    // x-axis when at motif.theta_ = 0
+    prefix = "d";
+    induced = 3;  // S(P|M) = d3
+
+    p0[0] = (tile_control_points_[1][0] + tile_control_points_[4][0]) / 2.0 + jitter;
+    p0[1] = (tile_control_points_[1][1] + tile_control_points_[4][1]) / 2.0 + jitter;
+
+    p1[0] = (tile_control_points_[5][0] + tile_control_points_[4][0]) / 2.0 + jitter;
+    p1[1] = (tile_control_points_[5][1] + tile_control_points_[4][1]) / 2.0 + jitter;
+  } else if (ih_number == 93) {
+    // Mirror lines cross in the middle of tile. Tactile has them as fixed lines.
+    // Motif is assumed to have at least one mirror plane defined by
+    // x-axis when at motif.theta_ = 0
+    prefix = "d";
+    induced = 3;  // S(P|M) = d3
+
+    p0[0] = (tile_control_points_[0][0] + tile_control_points_[1][0] + tile_control_points_[2][0]) / 3.0 + jitter;
+    p0[1] = (tile_control_points_[0][1] + tile_control_points_[1][1] + tile_control_points_[2][1]) / 3.0 + jitter;
+
+    p1[0] = tile_control_points_[1][0] + jitter;
+    p1[1] = tile_control_points_[1][1] + jitter;
+  } else if (ih_number == 76) {
+    // Mirror lines cross in the middle of tile. Tactile has them as fixed lines.
+    // Motif is assumed to have at least one mirror plane defined by
+    // x-axis when at motif.theta_ = 0
+    prefix = "d";
+    induced = 4;  // S(P|M) = d4
+
+    p0[0] = (tile_control_points_[0][0] + tile_control_points_[1][0] + tile_control_points_[2][0] + tile_control_points_[3][0]) / 4.0 + jitter;
+    p0[1] = (tile_control_points_[0][1] + tile_control_points_[1][1] + tile_control_points_[2][1] + tile_control_points_[3][1]) / 4.0 + jitter;
+
+    p1[0] = (tile_control_points_[2][0] + tile_control_points_[3][0])/2. + jitter;
+    p1[1] = (tile_control_points_[2][1] + tile_control_points_[3][1])/2. + jitter;
   } else {
 
     for (int i = 0; i < tile_control_points_.size(); ++i) {

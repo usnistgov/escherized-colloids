@@ -31,6 +31,10 @@ make clean; make;
 #./pso -n 37 -m ../../motif_library/d2_dumbbell.json;
 
 # S(P|M) = d3 Examples
+#./pso -n 18 -m ../../motif_library/d3_triangle.json;
+#./pso -n 93 -m ../../motif_library/d3_triangle.json;
 
+# S(P|M) = d4 Examples
+#./pso -n 76 -m ../../motif_library/d4_square.json;
 
 # Visualize the output (success.xyz) with any standard molecular visualization program.
