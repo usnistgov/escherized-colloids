@@ -816,11 +816,12 @@ const vector<double> Colloid::revise_motif_params_(const vector<double>& p0,
       }
     }
   } else {
-    throw customException("not implemented");
-
     // 1. Assign motif COM to rotation center
+    projected_coords[0] = p0[0];
+    projected_coords[1] = p0[1];
 
     // 2. No rotation is required
+    absolute_theta = thetaBounds(current_theta);
   }
 
   // 3. Update and return

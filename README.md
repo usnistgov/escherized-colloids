@@ -93,18 +93,14 @@ $ bash run.sh # You can change parameters in this file as needed.
 
 How To
 ======
+The design procedure is as follows:
 
-In the `design/` directory is a [Jupyter](https://jupyter.org/) notebook (`Design.ipynb`) which walks the user through the design process.  Briefly, it consists of:
-
-* Step 1a: Build new motif or decide on one from the `motif_libary/`.  The Jupyter notebook in the `motif_library/` directory illustrates how these are built and saved as JSON files.
-* Step 1b: It can be a good idea to check the point symmetry you have assigned to your motif using pymatgen.  This optional step is illustrated in the Design.ipynb notebook.
-* Step 2: Given the motif's symmetry, determine which groups (tiles) are safe, dangerous, or forbidden.
-* Step 3: Select a tile, create a colloid (e.g., see `examples/initialize_colloid/`) by combining it with the chosen motif.
-* Step 4: Create a unit cell (2x2 or greater is usually best) to inspect the design for its symmetry.  If you made a **safe** choice, this should be what you wanted. If you
-made a **dangerous** choice, you should double check.
+* Step 1: Build a new motif or decide on one from the `motif_libary/`.  The Jupyter notebook in the `motif_library/` directory (Create_Motifs.ipynb) illustrates how these are built and saved as JSON files.
+* Step 2: Use the Design.ipynb notebook in `design/` to determine which groups (tiles) are safe, dangerous, or forbidden and decide what you want to create.  It is a good idea to check the point symmetry you have assigned to your motif using pymatgen.  This optional step is illustrated in the Design.ipynb notebook.
+* Step 3: Select a tile, then create a colloid by placing the motif inside of it (e.g., see `examples/initialize_colloid/`); you can do this in an "optimal" way by optimizing the fit (e.g., see `examples/pso_auto/`).
+* Final check: Create a unit cell (2x2 or greater is usually best) to inspect the design for its symmetry.  If you made a **safe** choice, this should be what you wanted. If you made a **dangerous** choice, you should double check (e.g., `examples/unit_cell/`).
 
 To Do
 =====
-* Logic and coding for 47 non-FD tiles
 * DoF for 2 Bezier CP on edges
 * Allow initialize with df=0 (specify df_min)

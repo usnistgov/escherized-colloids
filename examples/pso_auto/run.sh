@@ -38,7 +38,7 @@ make clean; make;
 #./pso -n 76 -m ../../motif_library/d4_square.json;
 
 # S(P|M) = d6 Examples
-#./pso -n 20 -m ../../motif_library/d6_hexagon.json;
+./pso -n 20 -m ../../motif_library/d6_hexagon.json;
 
 # S(P|M) = c2 Examples
 
