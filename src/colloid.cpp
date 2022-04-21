@@ -730,12 +730,128 @@ void Colloid::constrain_(vector<double>* motif_params) {
 
     p1[0] = tile_control_points_[4][0] + jitter;
     p1[1] = tile_control_points_[4][1] + jitter;
+  } else if (ih_number == 8) {
+    // Rotation center in the middle of tile.
+    prefix = "c";
+    induced = 2;  // S(P|M) = c2
+
+    p0[0] = (tile_control_points_[5][0] + tile_control_points_[4][0] + tile_control_points_[2][0] + tile_control_points_[1][0]) / 4.0 + jitter;
+    p0[1] = (tile_control_points_[5][1] + tile_control_points_[4][1] + tile_control_points_[2][1] + tile_control_points_[1][1]) / 4.0 + jitter;
+
+    // p1 is ignored
+    p1[0] = p0[0];
+    p1[1] = p0[1];
+  } else if (ih_number == 57) {
+    // Rotation center in the middle of tile.
+    prefix = "c";
+    induced = 2;  // S(P|M) = c2
+
+    p0[0] = (tile_control_points_[0][0] + tile_control_points_[1][0] + tile_control_points_[2][0] + tile_control_points_[3][0]) / 4.0 + jitter;
+    p0[1] = (tile_control_points_[0][1] + tile_control_points_[1][1] + tile_control_points_[2][1] + tile_control_points_[3][1]) / 4.0 + jitter;
+
+    // p1 is ignored
+    p1[0] = p0[0];
+    p1[1] = p0[1];
+  } else if (ih_number == 9) {
+    // Rotation center in the middle of tile.
+    prefix = "c";
+    induced = 2;  // S(P|M) = c2
+
+    p0[0] = (tile_control_points_[4][0] + tile_control_points_[1][0] + tile_control_points_[2][0] + tile_control_points_[5][0]) / 4.0 + jitter;
+    p0[1] = (tile_control_points_[4][1] + tile_control_points_[1][1] + tile_control_points_[2][1] + tile_control_points_[5][1]) / 4.0 + jitter;
+
+    // p1 is ignored
+    p1[0] = p0[0];
+    p1[1] = p0[1];
+  } else if (ih_number == 59) {
+    // Rotation center in the middle of tile.
+    prefix = "c";
+    induced = 2;  // S(P|M) = c2
+
+    p0[0] = (tile_control_points_[0][0] + tile_control_points_[2][0]) / 2.0 + jitter;
+    p0[1] = (tile_control_points_[1][1] + tile_control_points_[3][1]) / 2.0 + jitter;
+
+    // p1 is ignored
+    p1[0] = p0[0];
+    p1[1] = p0[1];
+  } else if (ih_number == 58) {
+    // Rotation center in the middle of tile.
+    prefix = "c";
+    induced = 2;  // S(P|M) = c2
+
+    p0[0] = (tile_control_points_[0][0] + tile_control_points_[1][0] + tile_control_points_[2][0] + tile_control_points_[3][0]) / 4.0 + jitter;
+    p0[1] = (tile_control_points_[0][1] + tile_control_points_[1][1] + tile_control_points_[2][1] + tile_control_points_[3][1]) / 4.0 + jitter;
+
+    // p1 is ignored
+    p1[0] = p0[0];
+    p1[1] = p0[1];
+  } else if (ih_number == 61) {
+    // Rotation center in the middle of tile.
+    prefix = "c";
+    induced = 2;  // S(P|M) = c2
+
+    p0[0] = (tile_control_points_[0][0] + tile_control_points_[1][0] + tile_control_points_[2][0] + tile_control_points_[3][0]) / 4.0 + jitter;
+    p0[1] = (tile_control_points_[0][1] + tile_control_points_[1][1] + tile_control_points_[2][1] + tile_control_points_[3][1]) / 4.0 + jitter;
+
+    // p1 is ignored
+    p1[0] = p0[0];
+    p1[1] = p0[1];
+  } else if (ih_number == 34) {
+    // Rotation center in the middle of tile.
+    prefix = "c";
+    induced = 2;  // S(P|M) = c2
+
+    p0[0] = (tile_control_points_[0][0] + tile_control_points_[1][0] + tile_control_points_[2][0] + tile_control_points_[3][0]) / 4.0 + jitter;
+    p0[1] = (tile_control_points_[0][1] + tile_control_points_[1][1] + tile_control_points_[2][1] + tile_control_points_[3][1]) / 4.0 + jitter;
+
+    // p1 is ignored
+    p1[0] = p0[0];
+    p1[1] = p0[1];
+  } else if (ih_number == 10) {
+    // Rotation center in the middle of tile.
+    prefix = "c";
+    induced = 3;  // S(P|M) = c3
+
+    p0[0] = (tile_control_points_[0][0] + tile_control_points_[5][0] + tile_control_points_[2][0] + tile_control_points_[3][0]) / 4.0 + jitter;
+    p0[1] = (tile_control_points_[0][1] + tile_control_points_[5][1] + tile_control_points_[2][1] + tile_control_points_[3][1]) / 4.0 + jitter;
+
+    // p1 is ignored
+    p1[0] = p0[0];
+    p1[1] = p0[1];
+  } else if (ih_number == 90) {
+    // Rotation center in the middle of tile.
+    prefix = "c";
+    induced = 3;  // S(P|M) = c3
+
+    p0[0] = (tile_control_points_[0][0] + tile_control_points_[1][0] + tile_control_points_[2][0]) / 3.0 + jitter;
+    p0[1] = (tile_control_points_[0][1] + tile_control_points_[1][1] + tile_control_points_[2][1]) / 3.0 + jitter;
+
+    // p1 is ignored
+    p1[0] = p0[0];
+    p1[1] = p0[1];
+  } else if (ih_number == 62) {
+    // Rotation center in the middle of tile.
+    prefix = "c";
+    induced = 4;  // S(P|M) = c4
+
+    p0[0] = (tile_control_points_[0][0] + tile_control_points_[1][0] + tile_control_points_[2][0] + tile_control_points_[3][0]) / 4.0 + jitter;
+    p0[1] = (tile_control_points_[0][1] + tile_control_points_[1][1] + tile_control_points_[2][1] + tile_control_points_[3][1]) / 4.0 + jitter;
+
+    // p1 is ignored
+    p1[0] = p0[0];
+    p1[1] = p0[1];
+  } else if (ih_number == 11) {
+    // Rotation center in the middle of tile.
+    prefix = "c";
+    induced = 6;  // S(P|M) = c6
+
+    p0[0] = (tile_control_points_[0][0] + tile_control_points_[5][0] + tile_control_points_[2][0] + tile_control_points_[3][0]) / 4.0 + jitter;
+    p0[1] = (tile_control_points_[0][1] + tile_control_points_[5][1] + tile_control_points_[2][1] + tile_control_points_[3][1]) / 4.0 + jitter;
+
+    // p1 is ignored
+    p1[0] = p0[0];
+    p1[1] = p0[1];
   } else {
-
-    for (int i = 0; i < tile_control_points_.size(); ++i) {
-      std::cout << i << " | " << tile_control_points_[i][0] << ", " << tile_control_points_[i][1] << std::endl;
-    }
-
     throw(customException("unrecognized tile type"));
   }
 
@@ -775,6 +891,13 @@ const vector<double> Colloid::revise_motif_params_(const vector<double>& p0,
   vector<double> projected_coords(2, 0);
   double absolute_theta = 0.0;
 
+  const int n = m_.symmetrySuffix(prefix);
+  if ((n % induced != 0) ||
+      (n < induced)) {  // n = 0 if no mirror so this catches that
+    throw customException(
+        "motif's symmetry is incompatible with the tile");
+  }
+
   if (prefix.compare("d") == 0) {
     // 1. Put motif COM on mirror lines
     if (induced == 1) {
@@ -789,13 +912,6 @@ const vector<double> Colloid::revise_motif_params_(const vector<double>& p0,
     // 2. Round orientation to nearest allowable absolute theta value
     // Simply allow rotations that make mirror lines coincide (mod 2 leaves
     // motif unchanged)
-    const int n = m_.symmetrySuffix(prefix);
-
-    if ((n % induced != 0) ||
-        (n < induced)) {  // n = 0 if no mirror so this catches that
-      throw customException(
-          "motif's reflection symmetry is incompatible with the tile");
-    }
     const double curr_theta = thetaBounds(current_theta); // 0 <= t < 2PI
     double min_diff = pow(2.0 * M_PI, 2), diff = 0.0,
            allowed_angle = 0.0;
@@ -817,8 +933,7 @@ const vector<double> Colloid::revise_motif_params_(const vector<double>& p0,
     }
   } else {
     // 1. Assign motif COM to rotation center
-    projected_coords[0] = p0[0];
-    projected_coords[1] = p0[1];
+    projected_coords = p0;
 
     // 2. No rotation is required
     absolute_theta = thetaBounds(current_theta);

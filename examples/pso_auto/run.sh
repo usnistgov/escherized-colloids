@@ -38,14 +38,26 @@ make clean; make;
 #./pso -n 76 -m ../../motif_library/d4_square.json;
 
 # S(P|M) = d6 Examples
-./pso -n 20 -m ../../motif_library/d6_hexagon.json;
+#./pso -n 20 -m ../../motif_library/d6_hexagon.json;
 
 # S(P|M) = c2 Examples
+#./pso -n 8 -m ../../motif_library/c2_taiji.json;
+#./pso -n 57 -m ../../motif_library/c2_taiji.json;
+#./pso -n 9 -m ../../motif_library/c2_taiji.json;
+#./pso -n 59 -m ../../motif_library/c2_taiji.json;
+#./pso -n 58 -m ../../motif_library/c2_taiji.json;
+#./pso -n 61 -m ../../motif_library/c2_taiji.json;
+#./pso -n 34 -m ../../motif_library/c2_taiji.json;
 
 # S(P|M) = c3 Examples
+#./pso -n 10 -m ../../motif_library/c3_swirl.json;
+#./pso -n 90 -m ../../motif_library/c3_swirl.json;
 
 # S(P|M) = c4 Examples
+#./pso -n 62 -m ../../motif_library/c4_swirl.json;
 
 # S(P|M) = c6 Examples
+#./pso -n 11 -m ../../motif_library/c6_swirl_L.json;
 
 # Visualize the output (success.xyz) with any standard molecular visualization program.
+
