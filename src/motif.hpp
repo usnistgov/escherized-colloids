@@ -27,6 +27,7 @@ using std::istringstream;
 using std::ofstream;
 using std::string;
 using std::vector;
+using std::stringstream;
 
 using json = nlohmann::json;
 

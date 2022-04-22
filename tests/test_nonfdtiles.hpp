@@ -12,6 +12,102 @@
 using namespace std;
 using namespace csk;
 
+class SymmetryCompatibility : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    n = 0;
+    c1.load("../motif_library/c1_random.json");
+    c2.load("../motif_library/c2_taiji.json");
+    c3.load("../motif_library/c3_swirl.json");
+    c4.load("../motif_library/c4_swirl.json");
+    c6L.load("../motif_library/c6_swirl_L.json");
+    c6D.load("../motif_library/c6_swirl_D.json");
+
+    d1.load("../motif_library/d1_vitruvian.json");
+    d2.load("../motif_library/d2_dumbbell.json");
+    d3.load("../motif_library/d3_triangle.json");
+    d4.load("../motif_library/d4_square.json");
+    d6.load("../motif_library/d6_hexagon.json");
+    dinf.load("../motif_library/dinf_circle.json");
+  }
+
+  Motif c1, c2, c3, c4, c6L, c6D, d1, d2, d3, d4, d6, dinf;
+  int n;
+};
+
+TEST_F(SymmetryCompatibility, RotationSame) {
+  // Check c(n)
+  try {
+    n = compatibility_check(c1, "c", 1);
+  } catch (const customException &e) {
+    std::cout << e.getMessage() << std::endl;
+    ASSERT_TRUE(false);
+  }
+  ASSERT_EQ(n, 1);
+
+  // Check c(n)
+  try {
+    n = compatibility_check(c2, "c", 2);
+  } catch (const customException &e) {
+    std::cout << e.getMessage() << std::endl;
+    ASSERT_TRUE(false);
+  }
+  ASSERT_EQ(n, 2);
+
+  // Check c(n)
+  try {
+    n = compatibility_check(c3, "c", 3);
+  } catch (const customException &e) {
+    std::cout << e.getMessage() << std::endl;
+    ASSERT_TRUE(false);
+  }
+  ASSERT_EQ(n, 3);
+
+  // Check c(n)
+  try {
+    n = compatibility_check(c4, "c", 4);
+  } catch (const customException &e) {
+    std::cout << e.getMessage() << std::endl;
+    ASSERT_TRUE(false);
+  }
+  ASSERT_EQ(n, 4);
+
+  // Check c(n)
+  try {
+    n = compatibility_check(c6L, "c", 6);
+  } catch (const customException &e) {
+    std::cout << e.getMessage() << std::endl;
+    ASSERT_TRUE(false);
+  }
+  ASSERT_EQ(n, 6);
+
+  // Check c(n)
+  try {
+    n = compatibility_check(c6D, "c", 6);
+  } catch (const customException &e) {
+    std::cout << e.getMessage() << std::endl;
+    ASSERT_TRUE(false);
+  }
+  ASSERT_EQ(n, 6);
+}
+
+
+/*TEST_F(SymmetryCompatibility, RotationSubgroup) {
+}
+TEST_F(SymmetryCompatibility, Reflection) {
+}
+TEST_F(SymmetryCompatibility, ReflectionSubgroup) {
+}*/
+
+
+
+
+
+
+
+
+
+
 class NonFundamentalTest : public ::testing::Test {
  protected:
   void SetUp() override {

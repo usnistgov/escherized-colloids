@@ -282,7 +282,7 @@ void Motif::load(const string filename) {
 
 const int Motif::symmetrySuffix(const string prefix) {
   /**
-   * Get the number after the symmetry prefix.
+   * Get the number after the symmetry prefix (order).
    *
    * For example, c6 returns 6.
    * If requesting the suffix after "d" for a motif with "c"
@@ -290,9 +290,9 @@ const int Motif::symmetrySuffix(const string prefix) {
    * the order of the rotation group, or the number of mirrors planes
    * for a reflection group (the order of dn is 2n not n).
    *
-   * @param prefix Symmetry prefix (either "c" or "d").
+   * @param prefix Symmetry prefix (either "c" or "d") you want the degree of.
    *
-   * @returns
+   * @returns degree (n value).
    */
 
   string s = symmetry_.substr(0, 1), x = prefix.substr(0, 1);
@@ -302,9 +302,31 @@ const int Motif::symmetrySuffix(const string prefix) {
   if ((x != "c") && (x != "d")) {
     throw(customException("symmetry prefix unrecognized"));
   }
-  if (s.compare(x) != 0) {
-    return 0;
-  }
 
-  return std::stoi(symmetry_.substr(1));
+  stringstream ss;
+  ss << "unknown symmetry " << symmetry_;
+
+  if (x.compare("d") == 0) { // Asking for reflection symmetry of motif
+    if (symmetry_.size() == 4) { // Check if d(inf)
+      if (symmetry_.substr(1, 4).compare("inf") == 0) {
+        return INF_SYMM;
+      } else {
+        throw customException(ss.str());
+      }
+    } else if (symmetry_.size() == 2) {
+      if (s.compare("c") == 0) { // If motif has only rotation, no reflection return 0
+        return 0;
+      } else {
+        return std::stoi(symmetry_.substr(1));
+      }
+    } else {
+      throw customException(ss.str());
+    }
+  } else { // Asking for rotation symmetry of motif
+    if (symmetry_.size() == 2) {
+      return std::stoi(symmetry_.substr(1)); // If motif has n mirrors, d(n), this contains c(n) also so always is "n"
+    } else {
+      throw customException(ss.str());
+    }
+  }
 }

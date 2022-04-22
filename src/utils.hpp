@@ -30,6 +30,7 @@ using glm::dvec2;
 
 #define EXIT_FAILURE 1
 #define PIP_INF 1000000
+#define INF_SYMM 180 // 180 chosen so that when d_inf happens, we round allowed_angles to integer degrees
 
 // Isohedral tile types that are fundamental domains of crystals.
 const int FD_TYPES[46] = {1,  2,  3,  4,  5,  6,  7,  21, 22, 23, 24, 25,
