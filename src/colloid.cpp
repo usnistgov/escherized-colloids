@@ -1339,7 +1339,24 @@ void Colloid::perimeter_(vector<double> u0, vector<double> df, double du, int n,
       for (int j=1; j < half_size; ++j) {
         pattern[j-1] = i->getId() * (n-2) + j; // n-2 non-STOP codons
       }
+    } else if (is_undirected_mirror(tile_.getTilingType(), i->getId())) {
+      // Undirected I edge
+      assert(i->getShape() == 3);
+
+      const int half_size = (n-2)/2+1; // Round down if needed
+      pattern.resize(2*half_size, 0);
+
+      // Stop codons are type 0
+      pattern[0] = 0;
+      pattern[pattern.size()-1] = 0;
+
+      // Symmetric labelling around midpoint
+      for (int j=1; j < half_size; ++j) {
+        pattern[j] = i->getId() * (n-2) + j; // n-2 non-STOP codons
+        pattern[pattern.size()-1-j] = pattern[j];
+      }
     } else {
+      // Directed I edge or J edge
       pattern.resize(n, 0);
 
       // Stop codons are type 0
@@ -1686,6 +1703,7 @@ vector<vector<dvec2>> Colloid::perimeter_edges_(vector<double> u0, vector<double
    *
    * @param u0 Starting point for boundary points along each Bezier curve. Should be
    * in (0,1). S and U edges start from their center and essentially ignore this.
+   * Undirected I edges do the same and also ignore this parameter.
    * @param df Deformation (positive or negative) along each Bezier curve. 
    * @param du Gap along Bezier curve between boundary points. Should be < 1.
    * @param n Total number of points to place along each a completed edge. Note 
@@ -1744,6 +1762,7 @@ vector<vector<dvec2>> Colloid::perimeter_edges_(vector<double> u0, vector<double
 
     // Now, depending on the edge shape class, enforce symmetry
     // constraints on edges.
+    const bool undirected_edge = is_undirected_mirror(tile_.getTilingType(), idx);
     switch (tile_.getEdgeShape(idx)) {
       case J:
         u0_ = u0[idx];
@@ -1773,11 +1792,23 @@ vector<vector<dvec2>> Colloid::perimeter_edges_(vector<double> u0, vector<double
         cp_right = dummy;
         break;
       case I:
-        ej[1].y = 0.0;
-        ej[2].y = 0.0;
-        u0_ = u0[idx];
-        du_ = du;
-        n_ = n;
+        if (undirected_edge) {
+          // Some edges on non-FD tiles are symmetric about their midpoint
+          // and should be treated like "straight U" edges.
+          ej[1].y = 0.0;
+          ej[2].y = 0.0;
+          du_ = du;
+          assert(n >= 2);
+          const int n_side = (n-2)/2+1; // On one half
+          u0_ = 0.5-(n_side-0.5)*du_; // Start from left hand side of midpoint x=0.5
+          n_ = 2*n_side;
+        } else { // "Normal" mirror edge
+          ej[1].y = 0.0;
+          ej[2].y = 0.0;
+          u0_ = u0[idx];
+          du_ = du;
+          n_ = n;
+        }
         break;
     }
 
@@ -1797,6 +1828,62 @@ vector<vector<dvec2>> Colloid::perimeter_edges_(vector<double> u0, vector<double
   }
 
   return edges;
+}
+
+bool is_undirected_mirror(const int ih_number, const int edge_idx) {
+  /**
+   * Manual logic that indicates if a tile's edge is an undirected
+   * I edge.  In this case, we should treat it like a 
+   * "straight U" edge.  There is nothing fundamental about this; 
+   * this is just how Tactile is programmed.
+   */
+  if (ih_number == 17) {
+    if (edge_idx == 0) {
+      return true;
+    }
+  } else if (ih_number == 20) {
+    if (edge_idx == 0) {
+      return true;
+    }
+  } else if (ih_number == 26) {
+    if (edge_idx == 2) {
+      return true;
+    }
+  } else if (ih_number == 29) {
+    if (edge_idx == 0) {
+      return true;
+    }
+  } else if (ih_number == 40) {
+    if (edge_idx == 1) {
+      return true;
+    }
+  } else if (ih_number == 67) {
+    if (edge_idx == 1 || edge_idx == 2) {
+      return true;
+    }
+  } else if (ih_number == 72) {
+    if (edge_idx == 0 || edge_idx == 1) {
+      return true;
+    }
+  } else if (ih_number == 76) {
+    if (edge_idx == 0) {
+      return true;
+    }
+  } else if (ih_number == 82) {
+    if (edge_idx == 1) {
+      return true;
+    }
+  } else if (ih_number == 91) {
+    if (edge_idx == 1) {
+      return true;
+    }
+  } else if (ih_number == 93) {
+    if (edge_idx == 0) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 void Colloid::load(const string filename) {

@@ -154,4 +154,6 @@ vector<int> unique_(const vector<dvec2>& shape, const vector<int>& idx, const do
 
 void new_idx_(const vector<dvec2>& shape, vector<int>& last_edge, vector<int>& curr_edge, unsigned int& ov_, unsigned int& new_, const double eps = 1.0e-12);
 
+bool is_undirected_mirror(const int ih_number, const int edge_idx) ;
+
 #endif  // SRC_COLLOID_HPP_
