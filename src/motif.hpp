@@ -2,9 +2,9 @@
  * Copyright 2022 Nathan A. Mahynski
  * @author Nathan A. Mahynski
  *
- * A motif for the colloid is what is "inside" the tile.
- *
  * This file contains functions to build and manipulate motifs.
+ *
+ * A motif for the colloid is what is "inside" the tile.
  */
 
 #ifndef SRC_MOTIF_HPP_
@@ -77,5 +77,8 @@ class Motif {
   vector<vector<double>>
       coords_;  // (x,y) coordinates of motif's constituent particles.
 };
+
+
+const int compatibility_check(Motif& m, const string prefix, const int induced);
 
 #endif  // SRC_MOTIF_HPP_

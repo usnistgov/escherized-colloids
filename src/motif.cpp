@@ -330,3 +330,34 @@ const int Motif::symmetrySuffix(const string prefix) {
     }
   }
 }
+
+const int compatibility_check(Motif& m, const string prefix, const int induced) {
+  /**
+   * Check compatibility between the tile and motif.
+   * If they are compatible, returns the number after the symbol (e.g., 6 for c6).
+   * A motif with d(n) symmetry is compatible with S(P|M) = c(n) or S(P|M) = d(m) 
+   * when n%m == 0. A motif with c(n) symmetry is compatible with S(P|M) = c(m)
+   * when n%m == 0. In both cases, n >= m.  Note that d_inf (circle) is compatible
+   * with everything.
+   *
+   * Note that this formally caps the symmetry at INF_SYMM so if something greater
+   * than this is received it is returned as just INF_SYMM.
+   *
+   * @returns n
+   *
+   * @throws customException if symmetry is incompatible.
+   */
+  assert(induced >= 1 && induced <= 6); // S(P|M) only have 1 <= n <= 6
+
+  int n = m.symmetrySuffix(prefix);
+  if (n < INF_SYMM) { // d_inf contains all c(n) and d(n) so always compatible
+    if ((n % induced != 0) ||
+        (n < induced)) {  // n = 0 if no mirror so this catches that
+      throw customException("motif's symmetry is incompatible with the tile");
+    }
+  } else { // d_inf always compatible
+    n = INF_SYMM;
+  }
+
+  return n;
+}

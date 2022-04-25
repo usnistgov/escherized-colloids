@@ -5,6 +5,7 @@
 #include "test_mirror.hpp"
 #include "test_nonfdtiles.hpp"
 #include "test_projection.hpp"
+#include "test_symmcompat.hpp"
 #include "test_theta.hpp"
 
 int main(int argc, char **argv) {

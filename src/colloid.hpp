@@ -2,10 +2,10 @@
  * Copyright 2022 Nathan A. Mahynski
  * @author Nathan A. Mahynski
  *
- * A colloid is composed of an isohedral tile boundary and internal motif.
+ * This file contains functions to build and manipulate colloids. 
  *
- * This file contains functions to build and manipulate colloids. Tile
- * information is inherited from the Tactile library, while a Motif
+ * A colloid is composed of an isohedral tile boundary and internal motif.
+ * Tile information is inherited from the Tactile library, while a Motif
  * class is described in motif.hpp. This should be self-contained so
  * that, for example, external optimizers can manipulate the colloid's
  * parameters controlling its shape, etc. and compute properties from
@@ -155,6 +155,5 @@ vector<int> unique_(const vector<dvec2>& shape, const vector<int>& idx, const do
 void new_idx_(const vector<dvec2>& shape, vector<int>& last_edge, vector<int>& curr_edge, unsigned int& ov_, unsigned int& new_, const double eps = 1.0e-12);
 
 bool is_undirected_mirror(const int ih_number, const int edge_idx) ;
-const int compatibility_check(Motif& m, const string prefix, const int induced);
 
 #endif  // SRC_COLLOID_HPP_

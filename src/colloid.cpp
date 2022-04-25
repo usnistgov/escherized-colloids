@@ -864,30 +864,6 @@ void Colloid::constrain_(vector<double>* motif_params) {
   motif_params->at(2) = results[2];
 }
 
-const int compatibility_check(Motif& m, const string prefix, const int induced) {
-  /**
-   * Check compatibility between the tile and motif.
-   * If they are compatible, returns the number after the symbol (e.g., 6 for c6).
-   * A motif with d(n) symmetry is compatible with S(P|M) = c(n) or S(P|M) = d(m) 
-   * when n%m == 0. A motif with c(n) symmetry is compatible with S(P|M) = c(m)
-   * when n%m == 0. In both cases, n >= m.  Note that d_inf (circle) is compatible
-   * with everything.
-   *
-   * @returns n
-   *
-   * @throws customException if symmetry is incompatible.
-   */
-  const int n = m.symmetrySuffix(prefix);
-  if (n < INF_SYMM) { // d_inf contains all c(n) and d(n) so always compatible
-    if ((n % induced != 0) ||
-        (n < induced)) {  // n = 0 if no mirror so this catches that
-      throw customException("motif's symmetry is incompatible with the tile");
-    }
-  }
-
-  return n;
-}
-
 const vector<double> Colloid::revise_motif_params_(const vector<double>& p0,
                                       const vector<double>& p1,
                                       const vector<double>& orig_coords,
