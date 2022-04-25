@@ -102,7 +102,7 @@ class Colloid {
   const double getDU();
 
   void unitCell(vector<vector<double>>* coords, vector<string>* types,
-                vector<vector<double>>* box, const int nx, const int ny);
+                vector<vector<double>>* box, const int nx = 1, const int ny = 1, const double tol = 1.0e-8);
 
   vector<vector<double>> getBoundaryCoords() const { return boundary_coords_; }
   vector<int> getBoundaryIds() const { return boundary_ids_; }

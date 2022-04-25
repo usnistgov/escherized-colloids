@@ -130,7 +130,7 @@ int main( int argc, char **argv )
 		
 		vector<vector<double>> c_, b_;
                 vector<string> t_;
-		c.unitCell(&c_, &t_, &b_, 2, 2);
+		c.unitCell(&c_, &t_, &b_, 3, 3);
 		dumpXYZ(c_, t_, "unit_cell.xyz");
 	} catch ( const customException& e ) {
 		cout << e.getMessage() << std::endl;

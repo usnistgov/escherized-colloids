@@ -2057,8 +2057,8 @@ void Colloid::dumpXYZ(const string filename, const bool full = false) {
 }
 
 void Colloid::unitCell(vector<vector<double>>* coords, vector<string>* types,
-                       vector<vector<double>>* box, const int nx = 1,
-                       const int ny = 1) {
+                       vector<vector<double>>* box, const int nx,
+                       const int ny, const double tol) {
   /**
    * Make a unit cell (nx by ny) out of the motif. All particles are wrapped
    * into the box. This is useful when checking the final symmetry of the
@@ -2076,8 +2076,9 @@ void Colloid::unitCell(vector<vector<double>>* coords, vector<string>* types,
   }
   types->clear();
   coords->clear();
+  box->clear();
 
-  // Get unit cell by combining the relevant "aspects"
+  // Get unit cell by combining the relevant "aspects" (Tactile terminology)
   const int n = tile_.numAspects();
   vector<vector<double>> mc = m_.getCoords();
   vector<string> mt = m_.getTypes();
@@ -2087,10 +2088,13 @@ void Colloid::unitCell(vector<vector<double>>* coords, vector<string>* types,
     dmat3 T = tile_.getAspectTransform(i);
     vector<string> t = m_.getTypes();
     for (size_t j = 0; j < mc.size(); ++j) {
-      dvec3 c = T * dvec3(mc[j][0], mc[j][1], 0.0);
+      dvec3 c = T * dvec3(mc[j][0], mc[j][1], getTileScale());
       glm_coords.push_back(c);
     }
   }
+
+  box->push_back({t1.x, t1.y});
+  box->push_back({t2.x, t2.y});
 
   // Wrap and make copies by translating
   dmat2 H = {t1, t2};
@@ -2103,8 +2107,20 @@ void Colloid::unitCell(vector<vector<double>>* coords, vector<string>* types,
         dvec2 x = dvec2(mod(a.x, 1.0), mod(a.y, 1.0)) * H_T;
         vector<double> y = {x.x + ix * t1.x + iy * t2.x,
                             x.y + ix * t1.y + iy * t2.y};
-        coords->push_back(y);
-        types->push_back(mt[i % mc.size()]);
+
+        // Do not print duplicates
+        bool duplicate = false;
+        for (unsigned int k = 0; k < coords->size(); ++k) {
+          const double d2 = pow(coords->at(k)[0] - y[0], 2) + pow(coords->at(k)[1] - y[1], 2);
+          if (d2 < tol*tol) {
+            duplicate = true;
+            break;
+          }
+        }
+        if (!duplicate) {
+          coords->push_back(y);
+          types->push_back(mt[i % mc.size()]);
+        }
       }
     }
   }
