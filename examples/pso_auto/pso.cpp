@@ -92,7 +92,7 @@ int main(int argc, char **argv)
 	// Command line arguments
 	if ( argc < 3 ) {
 		show_usage(argv[0]);
-		return -1;
+		return 1;
 	}
 	
 	int ih_number = -1, idx = -1;
@@ -115,30 +115,30 @@ int main(int argc, char **argv)
 				}
 				if ( idx < 0 ) {
 					std::cerr << ih_number << " is an invalid IH tile number" << endl;
-					return -1;
+					return 1;
 				}
 			} else {
 				std::cerr << arg << " option requires one argument" << endl;
-				return -1;
+				return 1;
 			}
 		} else if ( (arg == "-m") || (arg == "--motif") ) {
 			if ( i+1 < argc ) {
 				motif = string(argv[i+1]);
 			} else {
 				std::cerr << arg << " option requires one argument" << endl;
-				return -1;
+				return 1;
 			}
 		} else if ( "-p" == arg.substr(0, 2) ) {
 			int n = atoi( arg.substr(2, arg.length()).c_str() );
 			if ( (n < 0) || (n > 5) ) { // At most there are 6 tile parameters
 				std::cerr << "invalid parameter index " << arg << endl;
-				return -1;
+				return 1;
 			} else {
 				if ( i+1 < argc ) {
 					p[n] = atof(argv[i+1]);
 				} else {
 					std::cerr << arg << " option requires one argument" << endl;
-	                                return -1;
+	                                return 1;
 				}
 			}
 		} 
@@ -187,7 +187,7 @@ int main(int argc, char **argv)
 		x_1 = data.c->getParameters(); // Initial guess is result after initialization
 	} catch (const exception& e) {
 		std::cerr << "unable to initialize colloid" << std::endl;
-		return -1;
+		return 1;
 	}
 
 	arma::vec lb = arma::zeros(x_1.size(), 1); // Lower bounds
@@ -258,7 +258,7 @@ int main(int argc, char **argv)
 			data.c->dump("success.json");
 		} catch (const customException &e) {
 			std::cerr << e.getMessage() << std::endl;
-			return -1;
+			return 1;
 		}
 	} else {
 		std::cout << "pso: Area minimization completed unsuccessfully." << std::endl;
@@ -268,4 +268,6 @@ int main(int argc, char **argv)
 	arma::cout << "pso: solution to Area minimization test:\n" << x_1 << arma::endl;
 	
 	delete data.c;
+
+	return 0;
 }

@@ -134,7 +134,7 @@ int main( int argc, char **argv )
 		dumpXYZ(c_, t_, "unit_cell.xyz");
 	} catch ( const customException& e ) {
 		cout << e.getMessage() << std::endl;
-		return -1;
+		return 1;
 	}
 
 	return 0;

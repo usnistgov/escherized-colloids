@@ -108,7 +108,7 @@ int main()
 		x_1 = data.c->getParameters(); // Initial guess is result after initialization
 	} catch ( const exception& e ) {
 		std::cerr << "unable to initialize colloid" << std::endl;
-		return -1;
+		return 1;
 	}
 
 	arma::vec lb = arma::zeros(x_1.size(), 1); // Lower bounds
@@ -176,4 +176,6 @@ int main()
 	arma::cout << "pso: solution to Area minimization test:\n" << x_1 << arma::endl;
 
 	delete data.c;
+
+	return 0;
 }

@@ -46,7 +46,7 @@ int main( int argc, char **argv )
 					std::cout << "Error for tile type " << int(ih_type) << " : " << e.getMessage() << std::endl;
 					
 
-					return -1;
+					return 1;
 				}
 			}
 		}

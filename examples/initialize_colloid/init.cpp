@@ -123,7 +123,7 @@ int main( int argc, char **argv )
 		c.dumpXYZ("colloid.xyz", false);
 	} catch ( const customException& e ) {
 		cout << e.getMessage() << std::endl;
-		return -1;
+		return 1;
 	}
 
 	return 0;
