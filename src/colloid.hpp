@@ -41,6 +41,7 @@ using std::ofstream;
 using std::stringstream;
 using std::string;
 using std::vector;
+using std::to_string;
 
 using csk::I;
 using csk::IsohedralTiling;
@@ -102,7 +103,9 @@ class Colloid {
   const double getDU();
 
   void unitCell(vector<vector<double>>* coords, vector<string>* types,
-                vector<vector<double>>* box, const int nx = 1, const int ny = 1, const double tol = 1.0e-8);
+                vector<vector<double>>* box, const int nx = 1, const int ny = 1, 
+                const double tol = 1.0e-8, const bool unique = false,
+                const bool boundary = false);
 
   vector<vector<double>> getBoundaryCoords() const { return boundary_coords_; }
   vector<int> getBoundaryIds() const { return boundary_ids_; }

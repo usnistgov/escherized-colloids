@@ -2058,17 +2058,21 @@ void Colloid::dumpXYZ(const string filename, const bool full = false) {
 
 void Colloid::unitCell(vector<vector<double>>* coords, vector<string>* types,
                        vector<vector<double>>* box, const int nx,
-                       const int ny, const double tol) {
+                       const int ny, const double tol, const bool unique,
+                       const bool boundary) {
   /**
-   * Make a unit cell (nx by ny) out of the motif. All particles are wrapped
-   * into the box. This is useful when checking the final symmetry of the
-   * system.
+   * Make a unit cell (nx by ny copies of the primitive cell) out of the motif, 
+   * and possibly the edges. All particles are wrapped into the box. This is 
+   * useful when checking the final symmetry of the system.
    *
+   * @param[out] coords (x, y) coordinates of particles in unit cell.
+   * @param[out] types Chemical type of each particle.
+   * @param[out] box Box ((v1.x, v1.y), (v2.x, v2.y)) translation vectors.
    * @param[in] nx Number of copies to make in the "t1" direction.
    * @param[in] ny Number of copies to make in the "t2" direction.
-   * @param[out] coords (x,y) coordinates of particles in unit cell.
-   * @param[out] types Chemical type of each particle.
-   * @param[out] box Box ( (v1.x, v1.y), (v2.x, v2.y) ) translation vectors.
+   * @param[in] tol Tolerance to check (and remove duplicate points).
+   * @param[in] unique Whether or not to assign unique letters to motif points.
+   * @param[in] boundary Whether or not to print the colloid's boundary coordinates also.
    */
 
   if (!motif_assigned_ || !tile_assigned_) {
@@ -2078,10 +2082,13 @@ void Colloid::unitCell(vector<vector<double>>* coords, vector<string>* types,
   coords->clear();
   box->clear();
 
-  // Get unit cell by combining the relevant "aspects" (Tactile terminology)
+  const std::string alphabet = "abcdefghijklmnopqrstuvwxyz";
+
+  // Get primitive cell by combining the relevant "aspects" (Tactile terminology)
   const int n = tile_.numAspects();
-  vector<vector<double>> mc = m_.getCoords();
+  vector<vector<double>> mc = m_.getCoords(), bd = getBoundaryCoords();
   vector<string> mt = m_.getTypes();
+  vector<int> bt = getBoundaryIds();
   glm::dvec2 t1 = tile_.getT1() * getTileScale(), t2 = tile_.getT2() * getTileScale();
   vector<dvec2> glm_coords;
   for (int i = 0; i < n; ++i) {
@@ -2091,15 +2098,23 @@ void Colloid::unitCell(vector<vector<double>>* coords, vector<string>* types,
       dvec3 c = T * dvec3(mc[j][0], mc[j][1], getTileScale());
       glm_coords.push_back(c);
     }
+    if (boundary) {
+      for (size_t j = 0; j < bd.size(); ++j) {
+        dvec3 c = T * dvec3(bd[j][0], bd[j][1], getTileScale());
+        glm_coords.push_back(c);
+      }
+    }
   }
 
   box->push_back({t1.x, t1.y});
   box->push_back({t2.x, t2.y});
 
-  // Wrap and make copies by translating
+  // Wrap and make copies of the primitive cell by translating
   dmat2 H = {t1, t2};
   dmat2 H_T = transpose(H);
   dmat2 H_T_inv = inverse(H_T);
+  int ctr = 0;
+  bool bd_coords = true;
   for (int ix = 0; ix < nx; ++ix) {
     for (int iy = 0; iy < ny; ++iy) {
       for (size_t i = 0; i < glm_coords.size(); ++i) {
@@ -2107,6 +2122,13 @@ void Colloid::unitCell(vector<vector<double>>* coords, vector<string>* types,
         dvec2 x = dvec2(mod(a.x, 1.0), mod(a.y, 1.0)) * H_T;
         vector<double> y = {x.x + ix * t1.x + iy * t2.x,
                             x.y + ix * t1.y + iy * t2.y};
+
+        // Is this a motif or boundary coordinate?
+        if (ctr < mt.size()) {
+          bd_coords = false;
+        } else {
+          bd_coords = true;
+        }
 
         // Do not print duplicates
         bool duplicate = false;
@@ -2119,7 +2141,24 @@ void Colloid::unitCell(vector<vector<double>>* coords, vector<string>* types,
         }
         if (!duplicate) {
           coords->push_back(y);
-          types->push_back(mt[i % mc.size()]);
+          if (unique == true && bd_coords == false) { // Assign letter_number type to motif point
+            stringstream ss;
+            ss << alphabet[ctr % alphabet.size()] << "_" << ctr / alphabet.size();
+            types->push_back(ss.str());
+          } else if (unique == false && bd_coords == false) { // Use whatever was provided in Motif object
+            // Purely for ease of use with OVITO, use a large number for the motif.
+            // This is because OVITO tries seems to try to combine type 0 with A, for example,
+            // which is only a problem when printing the boundary coordinates as well.
+            types->push_back(to_string(PIP_INF));
+          } else { // Use boundary type already assigned
+            types->push_back(to_string(bt[ctr-mt.size()]));
+          }
+        }
+
+        // Reset ctr at the end of one fundamental unit
+        ctr++;
+        if (ctr == glm_coords.size()/n) {
+          ctr = 0;
         }
       }
     }

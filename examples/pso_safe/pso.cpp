@@ -185,8 +185,8 @@ int main(int argc, char **argv)
 		data.c->setTileScale(1.0);
 		data.c->init();
 		x_1 = data.c->getParameters(); // Initial guess is result after initialization
-	} catch (const exception& e) {
-		std::cerr << "unable to initialize colloid" << std::endl;
+	} catch (const customException& e) {
+		std::cerr << "unable to initialize colloid : " << e.getMessage() << std::endl;
 		return 1;
 	}
 

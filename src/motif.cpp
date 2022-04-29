@@ -323,7 +323,13 @@ const int Motif::symmetrySuffix(const string prefix) {
       throw customException(ss.str());
     }
   } else { // Asking for rotation symmetry of motif
-    if (symmetry_.size() == 2) {
+    if (symmetry_.size() == 4) { // Check if d(inf)
+      if (symmetry_.substr(1, 4).compare("inf") == 0) {
+        return INF_SYMM;
+      } else {
+        throw customException(ss.str());
+      }
+    } else if (symmetry_.size() == 2) {
       return std::stoi(symmetry_.substr(1)); // If motif has n mirrors, d(n), this contains c(n) also so always is "n"
     } else {
       throw customException(ss.str());

@@ -16,7 +16,7 @@ def get_subgroups(group):
     if (group == 'c1'): # Identity
         return []
     elif (group.startswith("d")): # Dihedral group of order 2n (dn) 
-        if group.endswith("_inf"): # d_inf = group of isotropic circle
+        if group.endswith("inf"): # dinf = group of isotropic circle
             # Contains c_inf and other c, also d
             # However, for the purposes of this code, we can just return all the (minimal)
             # groups found in the table, which should suffice for all logic needed.
@@ -45,7 +45,7 @@ row_2 = [
     'pg',
     'c1',
     ['Primitive'],
-    'd_inf',
+    'dinf',
     [2, 3, 43, 44]
 ]
 
@@ -54,7 +54,7 @@ row_3 = [
     'pm',
     'c1',
     ['Primitive'],
-    'd_inf',
+    'dinf',
     [42]
 ]
 
@@ -72,7 +72,7 @@ row_5 = [
     'cm',
     'c1',
     ['Primitive'],
-    'd_inf',
+    'dinf',
     [22, 45, 83]
 ]
 
@@ -117,7 +117,7 @@ row_10 = [
     'pgg',
     'c2',
     ['pg'],
-    'd_inf',
+    'dinf',
     [9, 59]
 ]
 
@@ -135,7 +135,7 @@ row_12 = [
     'pmg', 
     'c2',
     ['pg', 'pm', 'pgg', '*'],
-    'd_inf',
+    'dinf',
     [58]
 ]
 
@@ -189,7 +189,7 @@ row_18 = [
     'cmm',
     'c2', 
     ['cm', 'pgg', 'pmm'],
-    'd_inf',
+    'dinf',
     [60]
 ]
 
@@ -243,7 +243,7 @@ row_24 = [
     'p31m',
     'c3', 
     ['cm', 'p3m1'],
-    'd_inf',
+    'dinf',
     [89]
 ]
 
@@ -315,7 +315,7 @@ row_32 = [
     'p4',
     'c4', 
     ['p1', 'p2(3)', '*(2)'],
-    'd_inf',
+    'dinf',
     [62]
 ]
 
@@ -333,7 +333,7 @@ row_34 = [
     'p4g',
     'c4', 
     ['pg', 'cm', 'pgg(2)', 'pmm', 'cmm'],
-    'd_inf',
+    'dinf',
     [63]
 ]
 
@@ -415,7 +415,7 @@ row_43 = [
     'p6',
     'c2', 
     ['p3'],
-    'd_inf',
+    'dinf',
     [34]
 ]
 
@@ -424,7 +424,7 @@ row_44 = [
     'p6',
     'c3', 
     ['p2', '*'],
-    'd_inf',
+    'dinf',
     [90]
 ]
 
@@ -433,7 +433,7 @@ row_45 = [
     'p6',
     'c6', 
     ['p1', 'p2(2)', 'p3(2)'],
-    'd_inf',
+    'dinf',
     [11]
 ]
 
@@ -523,9 +523,9 @@ def prioritize(motif_point_symmetry):
     # Either the induced group is not a subgroup of the motif, S(M) - if equal it is safe
     # or if it is, then the minimal forbidden supergroup belongs to the motif group.
     # This is the opposite of the dangerous mask and exclude safe ones, so they are the remainder
-    stricly_forbidden = symmetry_table[~mask1 & ~(mask2 & ~mask3)]
+    strictly_forbidden = symmetry_table[~mask1 & ~(mask2 & ~mask3)]
     
-    return safe, dangerous, stricly_forbidden
+    return safe, dangerous, strictly_forbidden
 
 def watch_out_for(ih_type, dangerous, motif_point_symmetry):
     """
@@ -539,19 +539,22 @@ def watch_out_for(ih_type, dangerous, motif_point_symmetry):
     Logic:
     1. Start with the S(P1) you are targeting and would usually get.
     2. That S(P1) should be treated as the MTPS of another pattern, S(P2), in which the 
-        induced group S(P2|M) is a supergroup (inclusive) of S(M). 
-    3.You cannot allow S(P2) to require induction of more symmetry than the motif has, since 
-        this is impossible for the motif provide. 
-    4. We must also require that S(P2|M) > S(P1|M), since we are considering the case where 
+        induced group S(P2|M) is a subgroup (inclusive) of S(M). 
+    - This is because you cannot allow S(P2) to require induction of more symmetry than the 
+        motif has, since this is impossible for the motif provide. 
+    3. We must also require that S(P2|M) > S(P1|M), since we are considering the case where 
         the motif has extra "unused" symmetries not exploited by the first pattern. Our
         algorithm would have considered that pattern "safe" not "dangerous" in that case.
-    5. We should also remove any cases where the minimal forbidden supergroup is a subgroup 
-        of S(M) also.
+    4. We should also remove any cases where the minimal forbidden supergroup is a subgroup 
+        of S(M) also since this would always forbid this motif.
         
     This will return rows in the table that tell you what symmetries you might end up with
     instead of what you were hoping for.
     """
     df = dangerous.loc[[ih_type in x for x in dangerous[col_names[5]].values]]
+    if df.empty:
+        raise ValueError("IH tile "+str(ih_type)+" is not a dangerous type")
+
     target_group = df[col_names[1]].values[0] # Wallpaper group originally targeted
     point_symm = df[col_names[2]].values[0] # The motif has more than this, otherwise it would have been considered "safe" by our algorithm
     
@@ -570,17 +573,19 @@ def watch_out_for(ih_type, dangerous, motif_point_symmetry):
 
     possibilities = symmetry_table.loc[[target_group in rename(v,g) for g,v in symmetry_table[[col_names[1], col_names[3]]].values]]
     
-    # Remove any possibilities that induce more/different than motif has to begin with
-    mask1 = np.array([x in [motif_point_symmetry] + get_subgroups(motif_point_symmetry) 
-                      for x in possibilities[col_names[2]]])
-    # Must induce MORE than the point_symm
-    mask2 = np.array([point_symm in get_subgroups(x) 
-                      for x in possibilities[col_names[2]]])
-    # Remove any forbidden cases
-    mask3 = np.array([x in [motif_point_symmetry] + get_subgroups(motif_point_symmetry) 
-                      for x in possibilities[col_names[4]]])
-    
-    return possibilities[mask1 & mask2 & ~mask3]
+    if (len(possibilities) > 0):
+        # Remove any possibilities that induce more/different than motif has to begin with (2)
+        mask1 = np.array([x in [motif_point_symmetry] + get_subgroups(motif_point_symmetry) 
+                          for x in possibilities[col_names[2]]])
+        # Must induce MORE than the point_symm, i.e. point_symm is a SUBgroup (3)
+        mask2 = np.array([point_symm in get_subgroups(x) 
+                          for x in possibilities[col_names[2]]])
+        # Remove any forbidden cases (4)
+        mask3 = np.array([x in [motif_point_symmetry] + get_subgroups(motif_point_symmetry) 
+                          for x in possibilities[col_names[4]]])
+        return possibilities[mask1 & mask2 & ~mask3]
+    else:
+        return possibilities # Just an empty table
 
 if __name__ == "__main__":
 

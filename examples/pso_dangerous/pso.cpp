@@ -194,8 +194,8 @@ int main(int argc, char **argv)
 		data.c->setTileScale(1.0);
 		data.c->init();
 		x_1 = data.c->getParameters(); // Initial guess is result after initialization
-	} catch (const exception& e) {
-		std::cerr << "unable to initialize colloid" << std::endl;
+	} catch (const customException& e) {
+		std::cerr << "unable to initialize colloid : " << e.getMessage() << std::endl;
 		return 1;
 	}
 
@@ -272,9 +272,13 @@ int main(int argc, char **argv)
 
 			vector<vector<double>> c_, b_;
                 	vector<string> t_;
-	                data.c->unitCell(&c_, &t_, &b_, 1, 1);
+	                data.c->unitCell(&c_, &t_, &b_, 3, 3);
 			ss.str("");
-			ss << label << "_unit_cell.xyz";
+			ss << label << "_3x3_unit_cell.xyz";
+			dumpXYZ(c_, t_, ss.str());
+			data.c->unitCell(&c_, &t_, &b_, 1, 1);
+                        ss.str("");
+                        ss << label << "_1x1_unit_cell.xyz";
         	        dumpXYZ(c_, t_, ss.str());
 		} catch (const customException &e) {
 			std::cerr << e.getMessage() << std::endl;

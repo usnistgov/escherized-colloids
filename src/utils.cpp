@@ -7,7 +7,7 @@
 
 void dumpXYZ(const vector<vector<double>> &coords, const vector<string> &types, const string filename) {
   /**
-   * Dump (x,y) coordinates to an XYZ file. 
+   * Dump (x,y,[z=0]) coordinates to an XYZ file. 
    *
    * @param coords (x,y) coordinates of particles in unit cell.
    * @param types Chemical type of each particle.
@@ -26,7 +26,7 @@ void dumpXYZ(const vector<vector<double>> &coords, const vector<string> &types, 
       xyz << types[i] << "\t" << coords[i][0] << "\t"
           << coords[i][1] << "\t" << 0 << endl;
     }
-  } catch (const exception& e) {
+  } catch (...) {
     throw(customException("unable to write to xyz file"));
   }
 
