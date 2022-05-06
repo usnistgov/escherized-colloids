@@ -8,8 +8,12 @@ variable	cpu_count equal __CPU_COUNT__
 variable	rec_freq equal __REC_FREQ__
 variable	res_freq equal __RES_FREQ__
 variable	n_atom_types equal __NATOM__
-variable	T equal __TEMP__
+variable	Tstart equal __TSTART__
+variable	Tfinal equal __TFINAL__
 variable	Tdamp equal __TDAMP__
+variable	Pstart equal __PSTART__
+variable	Pfinal equal __PFINAL__
+variable	Pdamp equal __PDAMP__
 variable	dt equal __TIMESTEP__
 variable	bins equal __TABLE_BINS__
 variable	comm_cut equal 1.1*__NP_WIDTH__
@@ -30,7 +34,7 @@ boundary	p p p
 atom_style	molecular
 dimension	2
 
-# Initialize - read from initial configuration file (on a grid)
+# Setup - read from initial configuration file (on a grid) 
 
 read_data	__INIT_CONFIG__
 dump		dump all custom ${rec_freq} log.dump id type xs ys zs vx vy vz
@@ -39,20 +43,20 @@ log		log.thermo
 thermo		${rec_freq}
 thermo_style	custom step atoms temp press pe ke epair etotal vol
 thermo_modify	flush yes line one norm yes
+pair_style	table/omp linear ${bins}
 restart		${res_freq} restart_1.lammps restart_2.lammps
 
-# Thermostat and Integration
+__PAIR_COEFF__
 
-#fix		integrator all rigid/nvt/small molecule temp ${T} ${T} ${Tdamp}
-fix             integrator all rigid/nve/small molecule langevin ${T} ${T} ${Tdamp} 123456789
+# Confine to 2D
+
 fix		momentum all momentum 1000 linear 1 1 1 angular rescale
 fix		dimensionality all enforce2d
 timestep	${dt}
 
-# Initial WCA randomization - everything is purely repulsive
-
-pair_style	table/omp linear ${bins}
-__PAIR_COEFF_WCA__
+#########################################
+# Initial randomization - high T, low P #
+#########################################
 
 comm_modify	cutoff ${comm_cut}
 neigh_modify	exclude molecule/intra all
@@ -63,33 +67,48 @@ velocity	all scale ${T}
 
 variable a loop ${n_in_loop}
 label init_loop
+fix             integrator_init all rigid/npt/small molecule langevin ${Tstart} ${Tstart} ${Tdamp} 123456789 iso ${Pstart} ${Pstart} ${Pdamp} pchain 1.0
 set atom * z 0
 set atom * vz 0
 run             ${steps_per}
+unfix 		integrator_init
 next a
 jump SELF init_loop
 
-# Equilibration phase - cool/compress slowly
-
-__PAIR_COEFF__
-
-comm_modify     cutoff ${comm_cut}
-neigh_modify    exclude molecule/intra all
+##############################################
+# Equilibration phase - cool/compress slowly #
+##############################################
 
 variable a loop ${n_eq_loop}
+variable Pa equal ${Pstart}
+variable dP equal (${Pstart} - ${Pfinal})/${n_eq_loop}
+variable Pb equal ${Pa}-dP
+variable Ta equal ${Tstart}
+variable dT equal (${Tstart} - ${Tfinal})/${n_eq_loop}
+variable Tb equal ${Ta}-dT
 label eq_loop
+fix             integrator_equil all rigid/npt/small molecule langevin ${Ta} ${Tb} ${Tdamp} 123456789 iso ${Pa} ${Pb} ${Pdamp} pchain 1.0
 set atom * z 0
 set atom * vz 0
 run             ${steps_per}
+unfix 		integrator_equil
 next a
+variable Pa equal ${Pb}
+variable Pb equal ${Pb}-${dP}
+variable Ta equal ${Tb}
+variable Tb equal ${Tb}-${dT}
 jump SELF eq_loop
 
-# Production phase - run at fixed T, P
+########################################
+# Production phase - run at fixed T, P #
+########################################
 
 variable a loop ${n_pr_loop}
 label pr_loop
+fix             integrator_prod all rigid/npt/small molecule langevin ${Tfinal} ${Tfinal} ${Tdamp} 123456789 iso ${Pfinal} ${Pfinal} ${Pdamp} pchain 1.0
 set atom * z 0
 set atom * vz 0
 run             ${steps_per}
+unfix		integrator_prod
 next a
 jump SELF pr_loop
