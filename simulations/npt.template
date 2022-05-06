@@ -1,0 +1,95 @@
+# Perform an NPT simulation in LAMMPS given a colloid (tile + motif)
+# Author: Nathan A. Mahynski
+# 05/06/2022
+
+# Variables
+
+variable	cpu_count equal __CPU_COUNT__
+variable	rec_freq equal __REC_FREQ__
+variable	res_freq equal __RES_FREQ__
+variable	n_atom_types equal __NATOM__
+variable	T equal __TEMP__
+variable	Tdamp equal __TDAMP__
+variable	dt equal __TIMESTEP__
+variable	bins equal __TABLE_BINS__
+variable	comm_cut equal 1.1*__NP_WIDTH__
+variable	n_init equal __N_INIT__
+variable	n_equil equal __N_EQUIL__
+variable	n_prod equal __N_PROD__
+
+variable        steps_per equal 10000
+variable        n_in_loop equal ${n_init}/${steps_per}
+variable        n_eq_loop equal ${n_equil}/${steps_per}
+variable        n_pr_loop equal ${n_prod}/${steps_per}
+
+# Settings
+
+package		omp ${cpu_count} neigh yes
+units		lj
+boundary	p p p
+atom_style	molecular
+dimension	2
+
+# Initialize - read from initial configuration file (on a grid)
+
+read_data	__INIT_CONFIG__
+dump		dump all custom ${rec_freq} log.dump id type xs ys zs vx vy vz
+dump_modify	dump pbc yes sort id flush yes
+log		log.thermo
+thermo		${rec_freq}
+thermo_style	custom step atoms temp press pe ke epair etotal vol
+thermo_modify	flush yes line one norm yes
+restart		${res_freq} restart_1.lammps restart_2.lammps
+
+# Thermostat and Integration
+
+#fix		integrator all rigid/nvt/small molecule temp ${T} ${T} ${Tdamp}
+fix             integrator all rigid/nve/small molecule langevin ${T} ${T} ${Tdamp} 123456789
+fix		momentum all momentum 1000 linear 1 1 1 angular rescale
+fix		dimensionality all enforce2d
+timestep	${dt}
+
+# Initial WCA randomization - everything is purely repulsive
+
+pair_style	table/omp linear ${bins}
+__PAIR_COEFF_WCA__
+
+comm_modify	cutoff ${comm_cut}
+neigh_modify	exclude molecule/intra all
+
+velocity	all create ${T} 123456789 dist gaussian mom yes rot yes
+run		0
+velocity	all scale ${T}
+
+variable a loop ${n_in_loop}
+label init_loop
+set atom * z 0
+set atom * vz 0
+run             ${steps_per}
+next a
+jump SELF init_loop
+
+# Equilibration phase - cool/compress slowly
+
+__PAIR_COEFF__
+
+comm_modify     cutoff ${comm_cut}
+neigh_modify    exclude molecule/intra all
+
+variable a loop ${n_eq_loop}
+label eq_loop
+set atom * z 0
+set atom * vz 0
+run             ${steps_per}
+next a
+jump SELF eq_loop
+
+# Production phase - run at fixed T, P
+
+variable a loop ${n_pr_loop}
+label pr_loop
+set atom * z 0
+set atom * vz 0
+run             ${steps_per}
+next a
+jump SELF pr_loop
