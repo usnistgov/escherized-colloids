@@ -17,7 +17,7 @@ class Colloid:
 		self.boundary_types = []
 		self.chirality = None
 	
-	def load(self, filename, chirality=True, sigma_b=0.1, sigma_m=0.25):
+	def load(self, filename, chirality=True, sigma_b=0.1, sigma_m=1.0):
 		"""
 		Load colloid from a JSON file.
 
@@ -52,15 +52,19 @@ class Colloid:
 
 		# Map the types to integers
 		assert(set(self.motif_types).intersection(set(self.boundary_types)) == set()), "Motif's types overlap with the boundary types"
-		self.forward = dict(enumerate(np.unique(a+b), start=1))
+		self.forward = dict(enumerate(np.unique(self.boundary_types).tolist()+np.unique(self.motif_types).tolist(), start=1))
+
 		self.reverse = {v:k for k,v in self.forward.items()}
 
 		# Assign chirality
 		self.chirality = chirality
 
 		# Assume all boundary points have the same size
-		self.sigma_b = {k:sigma_b for k in self.forward.keys() if not (k in self.motif_types)}
-		self.sigma_m = {k:sigma_m for k in self.forward.keys() if (k in self.motif_types)}
+		self.sigma_b = {k:sigma_b for k in self.reverse.keys() if not (k in self.motif_types)}
+		self.sigma_m = {k:sigma_m for k in self.reverse.keys() if (k in self.motif_types)}
+
+	def scale(self):
+		for
 
 	def eps(self, type_1):
 		"""Return the interaction energy associated with a given type."""
@@ -68,32 +72,34 @@ class Colloid:
 	
 	def sigma(self, type_1):
 		"""Return the particle diameter associated with a given type."""
-		if type_1 in self.sigma_b.keys():
-			return self.sigma_b[type_1]
-		if type_1 in self.sigma_m.keys():
-			return self.sigma_m[type_1]
-		raise ValueError(str(type_1)+" is unrecognized")
+		t = self.file_type(type_1)
+		if t in self.sigma_b.keys():
+			return self.sigma_b[t]
+		if t in self.sigma_m.keys():
+			return self.sigma_m[t]
 
 	def lammps_type(self, file_type):
 		"""Return the integer assigned to LAMMPS for a given type."""
-		return self.reverse(file_type)
+		return self.reverse[file_type]
 
 	def file_type(self, lammps_type):
 		"""Return the type from the JSON file associated with an integer LAMMPS type."""
-		return self.forward(lammps_type)
+		return self.forward[lammps_type]
 
 	def involves_motif(self, type_1, type_2):
 		"""Is one of these LAMMPS types a motif?"""
-		if file_type(type_1) in self.motif_types:
+		if self.file_type(type_1) in self.motif_types:
 			return True
-		if file_type(type_2) in self.motif_types:
+		if self.file_type(type_2) in self.motif_types:
 			return True
 		return False 
 
 	def is_stop_codon(self, type_1):
 		"""Is one of these LAMMPS types a stop codon?"""
-		if self.reverse['0'] == type_1: # '0' is reserved in C++ code for stop codon
+		if self.reverse[0] == type_1: # '0' is reserved in C++ code for stop codon
 			return True
+		else:
+			return False
 
 	@property
 	def coords(self):
@@ -101,7 +107,13 @@ class Colloid:
 
 	@property
 	def types(self):
-		return np.array([lammps_type(x) for x in self.boundary_types]+[lammps_type(x) for x in self.motif_coords]).copy()
+		return np.array([self.lammps_type(x) for x in self.boundary_types]+[self.lammps_type(x) for x in self.motif_types])
+
+	def save(self, filename):
+		"""Save object to disk."""
+		f = open(filename, 'wb')
+		import pickle
+		pickle.dump(self, f, protocol=4)
 
 class Analysis:
 	"""Tools to analyze simulations after they have been run."""
@@ -171,6 +183,17 @@ class LAMMPS:
 	"""Tools to build LAMMPS simulations easily."""
 
 	@staticmethod
+	def force_shifted_yukawa(r_min, r_cut, eps, kappa, bins=1000):
+		"""
+		Compute a force-shifted Yukawa-like potential.
+		"""
+		rvals = np.linspace(np.min([r_min, r_cut]), r_cut, bins)
+		u = -eps*np.exp(-kappa*r_cut)*(np.exp(-kappa*(rvals-r_cut)) - 1.0)
+		f = -eps*kappa*np.exp(-kappa*rvals)
+
+    		return rvals, u, f
+
+	@staticmethod
 	def force_shifted_lennard_jones(r_min, r_cut, eps, sigma, alpha, bins=1000):
 		"""
 		Compute a discretized force-shifted Lennard-Jones potential.
@@ -180,7 +203,7 @@ class LAMMPS:
 			u = (4.0 * eps * ((sigma / r) ** (2 * alpha) - (sigma / r) ** (alpha)))
 			f = (4.0 * eps * alpha / r * (2.0 * (sigma / r) ** (2 * alpha) - (sigma / r) ** (alpha)))
 
-		    return u, f
+			return u, f
 
 		shift, force_shift = lj(r_cut)
 		u, f = lj(rvals)
@@ -238,7 +261,7 @@ class LAMMPS:
 						# Boundary points with identical label interact favorably
 						r_cut = 2.5*sigma
 
-					rvals, energy, force = force_shifted_lennard_jones(r_min, r_cut, eps=eps, sigma=sigma, alpha=alpha, bins=bins)
+					rvals, energy, force = LAMMPS.force_shifted_lennard_jones(r_min, r_cut, eps=eps, sigma=sigma, alpha=alpha, bins=bins)
 					energy *= factor
 					force *= factor
 
@@ -316,7 +339,7 @@ class LAMMPS:
 			return result.message
 
 	@staticmethod
-	def tile(colloid, box, sigma, n=[0, 0]):
+	def tile(colloid, box, spacing, n=[0, 0]):
 		"""
 		Tile coordinates in a 2D simulation cell to make an initial configuration.
 
@@ -329,7 +352,7 @@ class LAMMPS:
 			Colloid to use as a template.
 		box : array-like
 			Array of simulation box size; (L_x, L_y), for example.
-		sigma : float
+		spacing : float
 			Padding to add to the bounding box; typically the diameter of a 
 			boundary particle.
 		n : array-like
@@ -345,7 +368,7 @@ class LAMMPS:
 		box = np.array(box)
 		coords = colloid.coords
 		ids = colloid.types
-		template, bbox = minimum_bounding_box(coords, sigma=sigma)
+		template, bbox = LAMMPS.minimum_bounding_box(coords, sigma=spacing)
 		
 		def flip(template, bbox):
 			"""Flips a centered template to change chirality."""
@@ -410,7 +433,7 @@ class LAMMPS:
 		raise Exception("Unable to place all particles.")
 
 	@staticmethod
-	def create_initial_configuration(colloid, box, sigma, n, filename):
+	def create_initial_configuration(colloid, box, spacing, n, filename):
 		"""
 		Create an initial configuration on a lattice.
 
@@ -420,7 +443,7 @@ class LAMMPS:
 			Colloid to use as a template.
 		box : array-like
 			Array of simulation box size; (L_x, L_y), for example.
-		sigma : float
+		spacing : float
 			Padding to add to the bounding box; typically the diameter of a 
 			boundary particle.
 		n : array-like
@@ -431,7 +454,7 @@ class LAMMPS:
 		"""
 
 		length = len(colloid.coords)
-		positions, identities = tile(colloid, box, sigma, n)
+		positions, identities = LAMMPS.tile(colloid, box, spacing, n)
 
 		with open(filename, "w") as f:
 			f.write("# LAMMPS configuration file\n\n")
