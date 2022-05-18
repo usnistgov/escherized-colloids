@@ -65,7 +65,13 @@ class Colloid:
 		self.sigma_m = {k:sigma_m for k in self.reverse.keys() if (k in self.motif_types)}
 
 	def scale(self, inplace=False):
-		"""Scale coordinates so that the minimum motif pair distance is unity."""
+		"""
+		Scale coordinates so that the minimum motif pair distance is unity.
+
+		If inplace, then internally resets the diameter (sigma) of the beads.
+		to sigma_m = 1, and sigma_b to the minimum pairwise distance between
+		boundary points after the scaling.
+		"""
 		coords_ = self.coords
 
 		# Scale based on motif coordinates
@@ -78,6 +84,11 @@ class Colloid:
 		if inplace:
 			self.boundary_coords = bc
 			self.motif_coords = mc
+
+			min_pdist = np.min(sp.spatial.distance.pdist(self.boundary_coords))
+			self.sigma_b = {k:min_pdist for k in self.reverse.keys() if not (k in self.motif_types)}
+			self.sigma_m = {k:1.0 for k in self.reverse.keys() if (k in self.motif_types)}
+
 			return min_pdist
 		else:
 			return bc, mc
@@ -199,6 +210,22 @@ class LAMMPS:
 	"""Tools to build LAMMPS simulations easily."""
 
 	@staticmethod
+	def force_shifted_tanh(r_min, r_cut, eps, sigma, kappa, bins=1000):
+		"""
+		Compute a force-shifted tanh() potential.
+		"""
+		rvals = np.linspace(r_min, r_cut, bins)
+		def u_base(r):
+			u_ = eps/2.0*(1.0-np.tanh(kappa*(r-sigma)))
+			du_ = -eps*kappa/2.0*(1.0/np.cosh(kappa*(r-sigma))**2)
+			return u_, du_
+	    
+		u_shift, du_shift = u_base(r_cut)
+		u, du = u_base(rvals)
+	    
+		return rvals, u - (rvals-r_cut)*du_shift - u_shift, -(du - du_shift)
+
+	@staticmethod
 	def force_shifted_yukawa(r_min, r_cut, eps, kappa, bins=1000):
 		"""
 		Compute a force-shifted Yukawa-like potential.
@@ -230,14 +257,22 @@ class LAMMPS:
 		return rvals, energy, force
 
 	@staticmethod
-	def tabulate_potentials(colloid, filename='potentials.lammps', alpha=6, bins=1000, style='fslj'):
+	def tabulate_potentials(colloid, filename='potentials.lammps', alpha=6, kappa_sigma=1.0, bins=1000, style='fslj'):
 		"""
 		Given a colloid, tabulate the pair potentials between all pairs.
 
+		If style == 'fslj':
 		Interactions are force-shifted LJ between all pairs of points, but
 		are set to WCA cutoff when boundary points are (1) unlike (i!=j) or
 		(2) involve a stop codon. No interaction (U=0) exists with motif
-		points.
+		points. LB mixing rules are applied.
+		
+		If style == 'fstanh':
+		Interactions are force-shifted LJ cutoff at 2.5*sigma (WCA) when
+		involving a motif point and stop codons.  Boundary points which are 
+		unlike (i!=j) have U=0 (no interaction) while boundary points which
+		have the same identity interact favorably.  LB mixing rules are 
+		applied.
 
 		Results are stored in the file under headings X_Y for interactions
 		between types X and Y.
@@ -249,11 +284,13 @@ class LAMMPS:
 		filename : str
 			Name of file to write the results to.
 		alpha : float
-			FS-LJ exponent to use.
+			fslj exponent to use. Ignored otherwise.
+		kappa_sigma : float
+			Dimensionless inverse decay length (kappa*sigma) for fstanh to use. Ignored otherwise.
 		bins : int
 			Number of bins to discretize energy and force into.
 		style : str
-			Type of potential to use: {'fslj': Force-Shifted Lennard-Jones, 'fsy': Force-Shifted Yukawa}
+			Type of potential to use: {'fslj': Force-Shifted Lennard-Jones, 'fstanh': Force-Shifted Tanh()}
 		"""
 
 		with open(filename, "w") as fn:
@@ -285,8 +322,22 @@ class LAMMPS:
 						rvals, energy, force = LAMMPS.force_shifted_lennard_jones(r_min, r_cut, eps=eps, sigma=sigma, alpha=alpha, bins=bins)
 						energy *= factor
 						force *= factor
-					elif style == 'fsy':
-						pass
+					elif style == 'fstanh':
+						sigma = (colloid.sigma(i) + colloid.sigma(j))/2.0
+						eps = np.sqrt(colloid.eps(i)*colloid.eps(j))
+						r_cut = 2.5*sigma
+						if (colloid.involves_motif(i, j) or colloid.is_stop_codon(i) or colloid.is_stop_codon(j)):
+							# WCA interaction with motif and with any stop codon
+							r_min = 0.7*sigma
+							rvals, energy, force = LAMMPS.force_shifted_lennard_jones(r_min=r_min, r_cut=r_cut, eps=eps, sigma=sigma, alpha=alpha, bins=bins)
+						elif (i != j):
+							#  Boundary points (not stop codons) that are different have no interaction
+							rvals, _, _ = LAMMPS.force_shifted_tanh(r_min=0, r_cut=r_cut, eps=eps, sigma=sigma, kappa=kappa_sigma/sigma, bins=1000)
+							energy = np.zeros_like(rvals)
+							force = np.zeros_like(rvals)
+						else:
+							# Boundary points with identical label interact favorably - eps must be negative for this potential to be attractive
+							rvals, energy, force = LAMMPS.force_shifted_tanh(r_min=0, r_cut=r_cut, eps=-1.0*eps, sigma=sigma, kappa=kappa_sigma/sigma, bins=1000)
 					else:
 						raise ValueError("unrecognized style {}".format(style))
 
