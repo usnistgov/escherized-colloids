@@ -4,10 +4,9 @@
 
 # Variables
 
-variable	cpu_count equal __CPU_COUNT__
+#variable	cpu_count equal __CPU_COUNT__
 variable	rec_freq equal __REC_FREQ__
 variable	res_freq equal __RES_FREQ__
-variable	n_atom_types equal __NATOM__
 variable	Tstart equal __TSTART__
 variable	Tfinal equal __TFINAL__
 variable	Tdamp equal __TDAMP__
@@ -16,19 +15,16 @@ variable	Pfinal equal __PFINAL__
 variable	Pdamp equal __PDAMP__
 variable	dt equal __TIMESTEP__
 variable	bins equal __TABLE_BINS__
-variable	comm_cut equal __NP_WIDTH__
-variable	n_init equal __N_INIT__
-variable	n_equil equal __N_EQUIL__
-variable	n_prod equal __N_PROD__
-
-variable        steps_per equal 10000
-variable        n_in_loop equal ${n_init}/${steps_per}
-variable        n_eq_loop equal ${n_equil}/${steps_per}
-variable        n_pr_loop equal ${n_prod}/${steps_per}
+variable	comm_cut equal __PSEUDODIAMETER__
+variable	n_init_loops equal __N_INIT_LOOPS__
+variable	n_equil_loops equal __N_EQUIL_LOOPS__
+variable	n_prod_loops equal __N_PROD_LOOPS__
+variable        steps_per equal __STEPS_PER_LOOP__
 
 # Settings
 
-package		omp ${cpu_count} neigh yes
+#package		omp ${cpu_count} neigh yes
+processors	* * 1 grid numa
 units		lj
 boundary	p p p
 atom_style	molecular
@@ -50,7 +46,7 @@ __PAIR_COEFF__
 
 # Confine to 2D
 
-fix		momentum all momentum 1000 linear 1 1 1 angular rescale
+fix		momentum all momentum ${steps_per} linear 1 1 1 angular rescale
 fix		dimensionality all enforce2d
 timestep	${dt}
 
@@ -65,7 +61,7 @@ velocity	all create ${T} 123456789 dist gaussian mom yes rot yes
 run		0
 velocity	all scale ${T}
 
-variable a loop ${n_in_loop}
+variable a loop ${n_in_loops}
 label init_loop
 fix             integrator_init all rigid/npt/small molecule langevin ${Tstart} ${Tstart} ${Tdamp} 123456789 iso ${Pstart} ${Pstart} ${Pdamp} pchain 1.0
 set atom * z 0
@@ -79,7 +75,7 @@ jump SELF init_loop
 # Equilibration phase - cool/compress slowly #
 ##############################################
 
-variable a loop ${n_eq_loop}
+variable a loop ${n_eq_loops}
 variable Pa equal ${Pstart}
 variable dP equal (${Pstart} - ${Pfinal})/${n_eq_loop}
 variable Pb equal ${Pa}-dP
@@ -103,7 +99,7 @@ jump SELF eq_loop
 # Production phase - run at fixed T, P #
 ########################################
 
-variable a loop ${n_pr_loop}
+variable a loop ${n_pr_loops}
 label pr_loop
 fix             integrator_prod all rigid/npt/small molecule langevin ${Tfinal} ${Tfinal} ${Tdamp} 123456789 iso ${Pfinal} ${Pfinal} ${Pdamp} pchain 1.0
 set atom * z 0

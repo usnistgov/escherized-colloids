@@ -332,12 +332,12 @@ class LAMMPS:
 							rvals, energy, force = LAMMPS.force_shifted_lennard_jones(r_min=r_min, r_cut=r_cut, eps=eps, sigma=sigma, alpha=alpha, bins=bins)
 						elif (i != j):
 							#  Boundary points (not stop codons) that are different have no interaction
-							rvals, _, _ = LAMMPS.force_shifted_tanh(r_min=0, r_cut=r_cut, eps=eps, sigma=sigma, kappa=kappa_sigma/sigma, bins=1000)
+							rvals, _, _ = LAMMPS.force_shifted_tanh(r_min=0, r_cut=r_cut, eps=eps, sigma=sigma, kappa=kappa_sigma/sigma, bins=bins)
 							energy = np.zeros_like(rvals)
 							force = np.zeros_like(rvals)
 						else:
 							# Boundary points with identical label interact favorably - eps must be negative for this potential to be attractive
-							rvals, energy, force = LAMMPS.force_shifted_tanh(r_min=0, r_cut=r_cut, eps=-1.0*eps, sigma=sigma, kappa=kappa_sigma/sigma, bins=1000)
+							rvals, energy, force = LAMMPS.force_shifted_tanh(r_min=0, r_cut=r_cut, eps=-1.0*eps, sigma=sigma, kappa=kappa_sigma/sigma, bins=bins)
 					else:
 						raise ValueError("unrecognized style {}".format(style))
 
