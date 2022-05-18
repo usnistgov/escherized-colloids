@@ -2,6 +2,7 @@
 Utilities to create and analyze LAMMPS simulations from a "colloid" prepared by C++ code.
 """
 import json
+import scipy as sp
 import numpy as np
 from scipy.optimize import minimize
 import copy
@@ -63,8 +64,23 @@ class Colloid:
 		self.sigma_b = {k:sigma_b for k in self.reverse.keys() if not (k in self.motif_types)}
 		self.sigma_m = {k:sigma_m for k in self.reverse.keys() if (k in self.motif_types)}
 
-	def scale(self):
-		for
+	def scale(self, inplace=False):
+		"""Scale coordinates so that the minimum motif pair distance is unity."""
+		coords_ = self.coords
+
+		# Scale based on motif coordinates
+		min_pdist = np.min(sp.spatial.distance.pdist(self.motif_coords))
+		com = np.mean(self.coords, axis=0)
+
+		# Center, scale, shift back
+		bc = ((np.array(self.boundary_coords) - com)/min_pdist + com).tolist()
+		mc = ((np.array(self.motif_coords) - com)/min_pdist + com).tolist()
+		if inplace:
+			self.boundary_coords = bc
+			self.motif_coords = mc
+			return min_pdist
+		else:
+			return bc, mc
 
 	def eps(self, type_1):
 		"""Return the interaction energy associated with a given type."""
@@ -190,8 +206,8 @@ class LAMMPS:
 		rvals = np.linspace(np.min([r_min, r_cut]), r_cut, bins)
 		u = -eps*np.exp(-kappa*r_cut)*(np.exp(-kappa*(rvals-r_cut)) - 1.0)
 		f = -eps*kappa*np.exp(-kappa*rvals)
-
-    		return rvals, u, f
+		
+		return rvals, u, f
 
 	@staticmethod
 	def force_shifted_lennard_jones(r_min, r_cut, eps, sigma, alpha, bins=1000):
@@ -214,7 +230,7 @@ class LAMMPS:
 		return rvals, energy, force
 
 	@staticmethod
-	def tabulate_potentials(colloid, filename='potentials.lammps', alpha=6, bins=1000):
+	def tabulate_potentials(colloid, filename='potentials.lammps', alpha=6, bins=1000, style='fslj'):
 		"""
 		Given a colloid, tabulate the pair potentials between all pairs.
 
@@ -236,6 +252,8 @@ class LAMMPS:
 			FS-LJ exponent to use.
 		bins : int
 			Number of bins to discretize energy and force into.
+		style : str
+			Type of potential to use: {'fslj': Force-Shifted Lennard-Jones, 'fsy': Force-Shifted Yukawa}
 		"""
 
 		with open(filename, "w") as fn:
@@ -243,27 +261,34 @@ class LAMMPS:
 			for i in range(1, len(colloid.reverse.values())+1):
 				for j in range(i, len(colloid.reverse.values())+1):
 					fn.write("{}\n".format(str(i) + "_" + str(j)))
-					factor = 1.0
-					sigma = (colloid.sigma(i) + colloid.sigma(j))/2.0
-					eps = np.sqrt(colloid.eps(i)*colloid.eps(j))
-					r_min = 0.7*sigma
-					if (colloid.involves_motif(i, j)):
-						# No interaction with motif (U = 0)
-						factor = 0.0
-						r_cut = 2.5*sigma
-					elif (colloid.is_stop_codon(i) or colloid.is_stop_codon(j)):
-						# WCA interaction between any boundary point any stop codon
-						r_cut = 2.0**(1.0/alpha) * sigma
-					elif (i != j):
-						# Boundary points (not stop codons) that are different have WCA
-						r_cut = 2.0**(1.0/alpha) * sigma
-					else:
-						# Boundary points with identical label interact favorably
-						r_cut = 2.5*sigma
+				
+					if style == 'fslj':
+						"""Cutoff at 2.5*sigma, rmin = 0.7*sigma, LB mixing, etc."""
+						factor = 1.0
+						sigma = (colloid.sigma(i) + colloid.sigma(j))/2.0
+						eps = np.sqrt(colloid.eps(i)*colloid.eps(j))
+						r_min = 0.7*sigma
+						if (colloid.involves_motif(i, j)):
+							# No interaction with motif (U = 0)
+							factor = 0.0
+							r_cut = 2.5*sigma
+						elif (colloid.is_stop_codon(i) or colloid.is_stop_codon(j)):
+							# WCA interaction between any boundary point any stop codon
+							r_cut = 2.0**(1.0/alpha) * sigma
+						elif (i != j):
+							# Boundary points (not stop codons) that are different have WCA
+							r_cut = 2.0**(1.0/alpha) * sigma
+						else:
+							# Boundary points with identical label interact favorably
+							r_cut = 2.5*sigma
 
-					rvals, energy, force = LAMMPS.force_shifted_lennard_jones(r_min, r_cut, eps=eps, sigma=sigma, alpha=alpha, bins=bins)
-					energy *= factor
-					force *= factor
+						rvals, energy, force = LAMMPS.force_shifted_lennard_jones(r_min, r_cut, eps=eps, sigma=sigma, alpha=alpha, bins=bins)
+						energy *= factor
+						force *= factor
+					elif style == 'fsy':
+						pass
+					else:
+						raise ValueError("unrecognized style {}".format(style))
 
 					fn.write("N {} R {} {}\n\n".format(bins, r_min, r_cut))
 					for idx, (r_, u_, f_) in enumerate(zip(rvals, energy, force)):
@@ -361,8 +386,9 @@ class LAMMPS:
 
 		Returns
 		-------
-		positions : ndarray, identities : ndarray
-			Array of particle coordinates and identities in the simulation box.
+		positions : ndarray, identities : ndarray, bbox : ndarray
+			Array of particle coordinates and identities in the simulation box,
+			and the bounding box that goes around a single colloid.
 		"""
 
 		box = np.array(box)
@@ -371,16 +397,16 @@ class LAMMPS:
 		template, bbox = LAMMPS.minimum_bounding_box(coords, sigma=spacing)
 		
 		def flip(template, bbox):
-			"""Flips a centered template to change chirality."""
+			"""Flips a template to change chirality."""
 			enan = template.copy()
 			enan[:, 0] = -enan[:, 0]  # Swap x coordinate
 			return enan
 		
 		# Shift to have left hand at (0,0)
 		template1 = template.copy() - bbox[:, 0].T
-		template2 = flip(template, bbox) - bbox[:, 0].T
-		bbox = (bbox.T - bbox[:, 0]).T
+		template2 = flip(template1, bbox) + np.array([bbox[0][1]-bbox[0][0], 0.0])
 
+		bbox = (bbox.T - bbox[:, 0]).T
 		delta = bbox[:, 1] - bbox[:, 0]
 		N = np.array(np.floor(box / delta), dtype=np.int32)
 
@@ -408,7 +434,6 @@ class LAMMPS:
 			for i in range(N[0]):
 				if counter % spacing == 0:  # Spread out
 					shift = delta * np.array([i, j])
-
 					enan = choose(total, n, total_each)
 					if enan == 0:
 						temp = template1
@@ -425,7 +450,7 @@ class LAMMPS:
 					total_each[enan] += 1
 
 					if total == ntot:
-						return positions, identities
+						return positions, identities, bbox
 				else:
 					pass
 				counter += 1
@@ -451,10 +476,15 @@ class LAMMPS:
 			will keep the orientation provided, the second will be "flipped".
 		filename : str
 			Name of file to write configuration to.
+
+		Returns
+		-------
+		pseudo_diameter : float
+			"Diameter" of a colloid ((over)estimated as diagonal of bounding box).
 		"""
 
 		length = len(colloid.coords)
-		positions, identities = LAMMPS.tile(colloid, box, spacing, n)
+		positions, identities, bbox_ = LAMMPS.tile(colloid, box, spacing, n)
 
 		with open(filename, "w") as f:
 			f.write("# LAMMPS configuration file\n\n")
@@ -491,4 +521,7 @@ class LAMMPS:
 			f.write("\nVelocities\n\n")  # Zero initial velocity, will be set later
 			for i in range(1, len(positions) + 1):
 				f.write(str(i) + "\t0.0\t0.0\t0.0\n")
+
+		pseudo_diameter = np.sqrt(np.sum((bbox_[:,1] - bbox_[:,0])**2))
+		return pseudo_diameter
 

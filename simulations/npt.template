@@ -16,7 +16,7 @@ variable	Pfinal equal __PFINAL__
 variable	Pdamp equal __PDAMP__
 variable	dt equal __TIMESTEP__
 variable	bins equal __TABLE_BINS__
-variable	comm_cut equal 1.1*__NP_WIDTH__
+variable	comm_cut equal __NP_WIDTH__
 variable	n_init equal __N_INIT__
 variable	n_equil equal __N_EQUIL__
 variable	n_prod equal __N_PROD__
