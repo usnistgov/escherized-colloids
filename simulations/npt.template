@@ -39,35 +39,38 @@ log		log.thermo
 thermo		${rec_freq}
 thermo_style	custom step atoms temp press pe ke epair etotal vol
 thermo_modify	flush yes line one norm yes
-pair_style	table/omp linear ${bins}
+pair_style	table linear ${bins}
 restart		${res_freq} restart_1.lammps restart_2.lammps
 
 __PAIR_COEFF__
 
+__PAIR_WRITE__
+
 # Confine to 2D
 
 fix		momentum all momentum ${steps_per} linear 1 1 1 angular rescale
-fix		dimensionality all enforce2d
 timestep	${dt}
 
 #########################################
 # Initial randomization - high T, low P #
 #########################################
 
-comm_modify	cutoff ${comm_cut}
+comm_modify	mode single cutoff ${comm_cut} group all
 neigh_modify	exclude molecule/intra all
 
-velocity	all create ${T} 123456789 dist gaussian mom yes rot yes
+velocity	all create ${Tstart} 123456789 dist gaussian mom yes rot yes
 run		0
-velocity	all scale ${T}
+velocity	all scale ${Tstart}
 
-variable a loop ${n_in_loops}
+variable a loop ${n_init_loops}
 label init_loop
-fix             integrator_init all rigid/npt/small molecule langevin ${Tstart} ${Tstart} ${Tdamp} 123456789 iso ${Pstart} ${Pstart} ${Pdamp} pchain 1.0
+fix             integrator_init all rigid/npt/small molecule temp ${Tstart} ${Tstart} ${Tdamp} iso ${Pstart} ${Pstart} ${Pdamp} pchain 5
+fix		dimensionality all enforce2d
 set atom * z 0
 set atom * vz 0
 run             ${steps_per}
 unfix 		integrator_init
+unfix		dimensionality
 next a
 jump SELF init_loop
 
@@ -75,19 +78,21 @@ jump SELF init_loop
 # Equilibration phase - cool/compress slowly #
 ##############################################
 
-variable a loop ${n_eq_loops}
+variable a loop ${n_equil_loops}
 variable Pa equal ${Pstart}
-variable dP equal (${Pstart} - ${Pfinal})/${n_eq_loop}
-variable Pb equal ${Pa}-dP
+variable dP equal (${Pstart} - ${Pfinal})/${n_equil_loops}
+variable Pb equal ${Pa}-${dP}
 variable Ta equal ${Tstart}
-variable dT equal (${Tstart} - ${Tfinal})/${n_eq_loop}
-variable Tb equal ${Ta}-dT
+variable dT equal (${Tstart} - ${Tfinal})/${n_equil_loops}
+variable Tb equal ${Ta}-${dT}
 label eq_loop
-fix             integrator_equil all rigid/npt/small molecule langevin ${Ta} ${Tb} ${Tdamp} 123456789 iso ${Pa} ${Pb} ${Pdamp} pchain 1.0
+fix             integrator_equil all rigid/npt/small molecule temp ${Ta} ${Tb} ${Tdamp} iso ${Pa} ${Pb} ${Pdamp} pchain 5
+fix             dimensionality all enforce2d
 set atom * z 0
 set atom * vz 0
 run             ${steps_per}
 unfix 		integrator_equil
+unfix		dimensionality
 next a
 variable Pa equal ${Pb}
 variable Pb equal ${Pb}-${dP}
@@ -99,12 +104,14 @@ jump SELF eq_loop
 # Production phase - run at fixed T, P #
 ########################################
 
-variable a loop ${n_pr_loops}
+variable a loop ${n_prod_loops}
 label pr_loop
-fix             integrator_prod all rigid/npt/small molecule langevin ${Tfinal} ${Tfinal} ${Tdamp} 123456789 iso ${Pfinal} ${Pfinal} ${Pdamp} pchain 1.0
+fix             integrator_prod all rigid/npt/small molecule temp ${Tfinal} ${Tfinal} ${Tdamp} iso ${Pfinal} ${Pfinal} ${Pdamp} pchain 5
+fix             dimensionality all enforce2d
 set atom * z 0
 set atom * vz 0
 run             ${steps_per}
 unfix		integrator_prod
+unfix		dimensionality
 next a
 jump SELF pr_loop

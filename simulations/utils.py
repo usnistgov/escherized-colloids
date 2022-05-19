@@ -212,9 +212,9 @@ class LAMMPS:
 	@staticmethod
 	def force_shifted_tanh(r_min, r_cut, eps, sigma, kappa, bins=1000):
 		"""
-		Compute a force-shifted tanh() potential.
+		Compute a force-shifted tanh() potential in LAMMPS RSQ layout.
 		"""
-		rvals = np.linspace(r_min, r_cut, bins)
+		rvals = np.sqrt(np.linspace(np.min([r_min, r_cut])**2, r_cut**2, bins))
 		def u_base(r):
 			u_ = eps/2.0*(1.0-np.tanh(kappa*(r-sigma)))
 			du_ = -eps*kappa/2.0*(1.0/np.cosh(kappa*(r-sigma))**2)
@@ -228,9 +228,9 @@ class LAMMPS:
 	@staticmethod
 	def force_shifted_yukawa(r_min, r_cut, eps, kappa, bins=1000):
 		"""
-		Compute a force-shifted Yukawa-like potential.
+		Compute a force-shifted Yukawa-like potential in LAMMPS RSQ layout.
 		"""
-		rvals = np.linspace(np.min([r_min, r_cut]), r_cut, bins)
+		rvals = np.sqrt(np.linspace(np.min([r_min, r_cut])**2, r_cut**2, bins))
 		u = -eps*np.exp(-kappa*r_cut)*(np.exp(-kappa*(rvals-r_cut)) - 1.0)
 		f = -eps*kappa*np.exp(-kappa*rvals)
 		
@@ -239,9 +239,9 @@ class LAMMPS:
 	@staticmethod
 	def force_shifted_lennard_jones(r_min, r_cut, eps, sigma, alpha, bins=1000):
 		"""
-		Compute a discretized force-shifted Lennard-Jones potential.
+		Compute a discretized force-shifted Lennard-Jones potential in LAMMPS RSQ layout.
 		"""
-		rvals = np.linspace(np.min([r_min, r_cut]), r_cut, bins)
+		rvals = np.sqrt(np.linspace(np.min([r_min, r_cut])**2, r_cut**2, bins))
 		def lj(r):
 			u = (4.0 * eps * ((sigma / r) ** (2 * alpha) - (sigma / r) ** (alpha)))
 			f = (4.0 * eps * alpha / r * (2.0 * (sigma / r) ** (2 * alpha) - (sigma / r) ** (alpha)))
@@ -255,6 +255,29 @@ class LAMMPS:
 		force = f - force_shift
 
 		return rvals, energy, force
+
+	@staticmethod
+	def rigid_body_min_comm(colloid, box, eps=0.1):
+		"""
+		Compute the minimum communication cutoff needed for LAMMPS.
+	    
+		Rigid particles get assigned to the particle closest to geometric
+		center, so interaction "range" needs to increase as a result.
+
+		https://docs.lammps.org/comm_modify.html
+		https://docs.lammps.org/fix_rigid.html#fix-rigid-npt-command
+		"""
+		# Particle that LAMMPS considers the "core"
+		unwrapped = Analysis.unwrap(colloid.coords, box)
+		com = np.mean(unwrapped, axis=0)
+		d = np.sqrt(np.sum((unwrapped-com)**2, axis=1))
+		core_pk = np.argmin(d)
+
+		# Max distance from the "core particle" to anyt particle in the rigid body
+		max_d = np.max(np.sqrt(np.sum((unwrapped-unwrapped[core_pk])**2, axis=1)))
+
+		# Additional epsilon/fudge factor
+		return max_d + eps
 
 	@staticmethod
 	def tabulate_potentials(colloid, filename='potentials.lammps', alpha=6, kappa_sigma=1.0, bins=1000, style='fslj'):
@@ -291,8 +314,14 @@ class LAMMPS:
 			Number of bins to discretize energy and force into.
 		style : str
 			Type of potential to use: {'fslj': Force-Shifted Lennard-Jones, 'fstanh': Force-Shifted Tanh()}
+
+		Returns
+		-------
+		max_rcut : float
+			Maximum cutoff distance for all potentials.
 		"""
 
+		max_rcut = 0.0
 		with open(filename, "w") as fn:
 			fn.write("# Tabulated pair potentials\n\n")
 			for i in range(1, len(colloid.reverse.values())+1):
@@ -326,25 +355,28 @@ class LAMMPS:
 						sigma = (colloid.sigma(i) + colloid.sigma(j))/2.0
 						eps = np.sqrt(colloid.eps(i)*colloid.eps(j))
 						r_cut = 2.5*sigma
+						r_min = 1.0e-6 # LAMMPS does not allow R=0 in tables
 						if (colloid.involves_motif(i, j) or colloid.is_stop_codon(i) or colloid.is_stop_codon(j)):
 							# WCA interaction with motif and with any stop codon
 							r_min = 0.7*sigma
 							rvals, energy, force = LAMMPS.force_shifted_lennard_jones(r_min=r_min, r_cut=r_cut, eps=eps, sigma=sigma, alpha=alpha, bins=bins)
 						elif (i != j):
 							#  Boundary points (not stop codons) that are different have no interaction
-							rvals, _, _ = LAMMPS.force_shifted_tanh(r_min=0, r_cut=r_cut, eps=eps, sigma=sigma, kappa=kappa_sigma/sigma, bins=bins)
+							rvals, _, _ = LAMMPS.force_shifted_tanh(r_min=r_min, r_cut=r_cut, eps=eps, sigma=sigma, kappa=kappa_sigma/sigma, bins=bins)
 							energy = np.zeros_like(rvals)
 							force = np.zeros_like(rvals)
 						else:
 							# Boundary points with identical label interact favorably - eps must be negative for this potential to be attractive
-							rvals, energy, force = LAMMPS.force_shifted_tanh(r_min=0, r_cut=r_cut, eps=-1.0*eps, sigma=sigma, kappa=kappa_sigma/sigma, bins=bins)
+							rvals, energy, force = LAMMPS.force_shifted_tanh(r_min=r_min, r_cut=r_cut, eps=-1.0*eps, sigma=sigma, kappa=kappa_sigma/sigma, bins=bins)
 					else:
 						raise ValueError("unrecognized style {}".format(style))
 
-					fn.write("N {} R {} {}\n\n".format(bins, r_min, r_cut))
+					max_rcut = np.max([max_rcut, r_cut])
+					fn.write("N {} RSQ {} {}\n\n".format(bins, r_min, r_cut))
 					for idx, (r_, u_, f_) in enumerate(zip(rvals, energy, force)):
-						fn.write("{} {} {} {}\n".format(idx + 1, r_, u_, f_))
-					fn.write("\n")		
+						fn.write("{} {} {} {}\n".format(idx + 1, r_**2, u_, f_))
+					fn.write("\n")	
+		return max_rcut	
 
 	@staticmethod
 	def minimum_bounding_box(coords, sigma):
