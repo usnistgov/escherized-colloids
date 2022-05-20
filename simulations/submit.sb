@@ -1,27 +1,17 @@
 #!/bin/bash
 #
-#SBATCH -n 24
-#SBATCH -N 1
+#SBATCH -n __CORES__
+#SBATCH -N __NODES__
 #SBATCH -t 1-0:0
-#SBATCH -J GROUP_CHIR
+#SBATCH -J __NAME__
 #SBATCH --export=all
 
-n1=N1;
-n2=N2;
-rho=RHO;
-T=TEMP;
-group="GROUP";
-
 cd $SLURM_SUBMIT_DIR
-source /home/nam4/.bashrc;
 
-# report
 echo "Running on $(hostname)";
 echo "Time: $(date)";
 echo "Starting directory: $PWD";
 
-conda activate py37;
-python /home/nam4/rigid_np/make.py /home/nam4/rigid_np/$group/$group.L.xyz $n1 $n2 $rho $T 24;
-/home/nam4/lammps/build/lmp < run.lmp;
+mpirun -bind-to core /home/nam4/lammps/build/lmp_mpi -in input.lmp;
 
 echo "Finished on $(date)";

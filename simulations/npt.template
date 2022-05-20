@@ -55,8 +55,10 @@ timestep	${dt}
 # Initial randomization - high T, low P #
 #########################################
 
-comm_modify	mode single cutoff ${comm_cut} group all
+neighbor	2.0 bin # Extra buffer to help avoid dangerous builds
 neigh_modify	exclude molecule/intra all
+neigh_modify	delay 1 every 1 check yes
+comm_modify	mode single cutoff ${comm_cut} group all
 
 velocity	all create ${Tstart} 123456789 dist gaussian mom yes rot yes
 run		0
@@ -80,10 +82,10 @@ jump SELF init_loop
 
 variable a loop ${n_equil_loops}
 variable Pa equal ${Pstart}
-variable dP equal (${Pstart} - ${Pfinal})/${n_equil_loops}
+variable dP equal (${Pstart}-${Pfinal})/${n_equil_loops}
 variable Pb equal ${Pa}-${dP}
 variable Ta equal ${Tstart}
-variable dT equal (${Tstart} - ${Tfinal})/${n_equil_loops}
+variable dT equal (${Tstart}-${Tfinal})/${n_equil_loops}
 variable Tb equal ${Ta}-${dT}
 label eq_loop
 fix             integrator_equil all rigid/npt/small molecule temp ${Ta} ${Tb} ${Tdamp} iso ${Pa} ${Pb} ${Pdamp} pchain 5

@@ -94,7 +94,8 @@ class Colloid:
 			return bc, mc
 
 	def eps(self, type_1):
-		"""Return the interaction energy associated with a given type."""
+		"""
+		Return the interaction energy associated with a given type."""
 		return 1.0
 	
 	def sigma(self, type_1):
@@ -144,6 +145,90 @@ class Colloid:
 
 class Analysis:
 	"""Tools to analyze simulations after they have been run."""
+
+	@staticmethod
+	def thermo(log_filename):
+		"""
+		Get the thermodynamic output from a simulation log file.
+
+		Returns
+		-------
+		results : dict(str, ndarray)
+			Dictionary of thermodynamic properties over time.
+		"""
+		f = open(log_filename, 'r')
+		lines = f.readlines()
+		f.close()
+
+		start = []
+		end = []
+		keys = 'Step Atoms Temp Press PotEng KinEng E_pair TotEng Volume'
+		for i,l in enumerate(lines):
+			if keys in l:
+				start.append(i+1)
+			elif 'Loop time of' in l:
+				end.append(i-1)
+
+		# In case loop didn't finish, just use the chunks that did for simplicity
+		length = np.min([len(start), len(end)])
+
+		# The first one is the initialization of velocities, so skip
+		total = None
+		for i,j in zip(start[1:length], end[1:length]):
+			chunk = np.array([x.strip().split() for x in lines[i:j+1]], dtype=np.float64)
+			if total is None:
+				total = chunk
+			else: 
+				total = np.vstack((total, chunk))
+
+		results = {}
+		for i, k in enumerate(keys.split()):
+			results[k] = total[:,i]
+
+		return results
+
+	@staticmethod
+	def performance(log_filename):
+		"""Get the speed (timesteps per second) of the simulations."""
+		f = open(log_filename, 'r')
+		lines = f.readlines()
+		f.close()
+
+		steps_per_second = []
+		for l in lines:
+			if "Performance" in l:
+				steps_per_second.append(float(l.strip().split()[-2]))
+
+		return np.array(steps_per_second, dtype=np.float64)
+
+	@staticmethod
+	def sanity_checks(log_filename):
+		"""Check the LAMMPS log.thermo file for any errors."""
+		f = open(log_filename, 'r')
+		lines = f.readlines()
+		f.close()
+
+		# 1. Check for dangerous builds
+		for l in lines:
+			if "Dangerous" in l:
+				if int(l.strip().split('=')[-1]) > 0:
+					raise Exception('Dangerous builds found in {}'.format(log_filename))
+
+		# 2. Check max distance to body ownership
+		for i,l in enumerate(lines):
+			if "comm_cut" in l:
+				ctr = i+1
+				break
+        
+		for l in lines:
+			if "max distance from body owner to body atom" in l:
+				d = float(l.strip().split('=')[0])
+				pseudo_diameter = float(lines[ctr].split()[4])
+				if d > pseudo_diameter:
+					raise Exception('Max distance from body owner to body atom ({}) exceeds pseudo_diameter ({})'.format(d, pseudo_diameter))
+
+		f.close()
+		return True
 
 	@staticmethod
 	def unwrap(coords, box):
@@ -223,7 +308,7 @@ class LAMMPS:
 		u_shift, du_shift = u_base(r_cut)
 		u, du = u_base(rvals)
 	    
-		return rvals, u - (rvals-r_cut)*du_shift - u_shift, -(du - du_shift)
+		return rvals, u - (rvals - r_cut)*du_shift - u_shift, -(du - du_shift)
 
 	@staticmethod
 	def force_shifted_yukawa(r_min, r_cut, eps, kappa, bins=1000):
@@ -245,7 +330,6 @@ class LAMMPS:
 		def lj(r):
 			u = (4.0 * eps * ((sigma / r) ** (2 * alpha) - (sigma / r) ** (alpha)))
 			f = (4.0 * eps * alpha / r * (2.0 * (sigma / r) ** (2 * alpha) - (sigma / r) ** (alpha)))
-
 			return u, f
 
 		shift, force_shift = lj(r_cut)
@@ -278,6 +362,23 @@ class LAMMPS:
 
 		# Additional epsilon/fudge factor
 		return max_d + eps
+
+	@staticmethod
+	def read_lammps_potential(filename, i, j):
+		"""Read LAMMPS potential from file."""
+		f = open(filename, 'r')
+		lines = f.readlines()
+    
+		for ctr,l in enumerate(lines):
+			if '{}_{}'.format(i,j) == l.strip():
+				start = ctr
+				break
+            
+		N = int(lines[ctr+1].strip().split()[1])
+		r_u_f = [lines[idx].strip().split()[1:4] for idx in np.arange(ctr+3, ctr+3+N)]
+    
+            
+		return np.array(r_u_f, dtype=np.float64)
 
 	@staticmethod
 	def tabulate_potentials(colloid, filename='potentials.lammps', alpha=6, kappa_sigma=1.0, bins=1000, style='fslj'):
@@ -317,11 +418,12 @@ class LAMMPS:
 
 		Returns
 		-------
-		max_rcut : float
-			Maximum cutoff distance for all potentials.
+		max_rcut : float, rcut_dict : dict(str, (float, float))
+			Maximum cutoff distance for all potentials; dictionary of (r_min, r_cut) for each particle type pairs.
 		"""
 
 		max_rcut = 0.0
+		rcut_dict = {}
 		with open(filename, "w") as fn:
 			fn.write("# Tabulated pair potentials\n\n")
 			for i in range(1, len(colloid.reverse.values())+1):
@@ -358,13 +460,14 @@ class LAMMPS:
 						r_min = 1.0e-6 # LAMMPS does not allow R=0 in tables
 						if (colloid.involves_motif(i, j) or colloid.is_stop_codon(i) or colloid.is_stop_codon(j)):
 							# WCA interaction with motif and with any stop codon
-							r_min = 0.7*sigma
+							r_min = 0.5*sigma
+							r_cut = 2.0**(1.0/alpha) * sigma
 							rvals, energy, force = LAMMPS.force_shifted_lennard_jones(r_min=r_min, r_cut=r_cut, eps=eps, sigma=sigma, alpha=alpha, bins=bins)
 						elif (i != j):
 							#  Boundary points (not stop codons) that are different have no interaction
 							rvals, _, _ = LAMMPS.force_shifted_tanh(r_min=r_min, r_cut=r_cut, eps=eps, sigma=sigma, kappa=kappa_sigma/sigma, bins=bins)
 							energy = np.zeros_like(rvals)
-							force = np.zeros_like(rvals)
+							force = -np.zeros_like(rvals)
 						else:
 							# Boundary points with identical label interact favorably - eps must be negative for this potential to be attractive
 							rvals, energy, force = LAMMPS.force_shifted_tanh(r_min=r_min, r_cut=r_cut, eps=-1.0*eps, sigma=sigma, kappa=kappa_sigma/sigma, bins=bins)
@@ -372,11 +475,12 @@ class LAMMPS:
 						raise ValueError("unrecognized style {}".format(style))
 
 					max_rcut = np.max([max_rcut, r_cut])
+					rcut_dict['{}_{}'.format(i, j)] = (r_min, r_cut)
 					fn.write("N {} RSQ {} {}\n\n".format(bins, r_min, r_cut))
 					for idx, (r_, u_, f_) in enumerate(zip(rvals, energy, force)):
-						fn.write("{} {} {} {}\n".format(idx + 1, r_**2, u_, f_))
+						fn.write("{} {} {} {}\n".format(idx + 1, '%.12f'%(r_**1), '%.12f'%u_, '%.12f'%f_))
 					fn.write("\n")	
-		return max_rcut	
+		return max_rcut, rcut_dict
 
 	@staticmethod
 	def minimum_bounding_box(coords, sigma):
@@ -541,7 +645,7 @@ class LAMMPS:
 		raise Exception("Unable to place all particles.")
 
 	@staticmethod
-	def create_initial_configuration(colloid, box, spacing, n, filename):
+	def create_initial_configuration(colloid, box, spacing, n, filename, unit_mass=False):
 		"""
 		Create an initial configuration on a lattice.
 
@@ -559,6 +663,10 @@ class LAMMPS:
 			will keep the orientation provided, the second will be "flipped".
 		filename : str
 			Name of file to write configuration to.
+		unit_mass : bool
+			If true, the mass of the entire colloid is set to 1.02 by evenly 
+			dividing the mass over all constituent "atoms"; otherwise all
+			atoms have a mass of 1.0.
 
 		Returns
 		-------
@@ -597,9 +705,12 @@ class LAMMPS:
 					str(positions[i][0]) + "\t" + str(positions[i][1]) + "\t0\n"
 				)
 
-			f.write("\nMasses\n\n")  # Set mass of whole particle to unity
+			f.write("\nMasses\n\n")  
+			m = 1.0
+			if unit_mass: # Set mass of whole colloid to unity
+				m /= len(colloid.coords)
 			for i in range(1, len(np.unique(identities)) + 1):
-				f.write(str(i) + "\t" + str(1.0) + "\n")
+				f.write(str(i) + "\t" + str(m) + "\n")
 
 			f.write("\nVelocities\n\n")  # Zero initial velocity, will be set later
 			for i in range(1, len(positions) + 1):
