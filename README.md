@@ -74,11 +74,10 @@ $ bash auto.sh
 Symmetry checks and manipulations are performed using [pymatgen](https://pymatgen.org/) in the `design` directory.  This package must be installed if you intend to use the tools therein.
 
 ### pre-commit (optional)
-This repo uses pre-commit to manage style, as described [here](https://github.com/bmorcos/pre-commit-hooks-cpp).  You will need to install [cpplint](https://pypi.org/project/cpplint/) and [clang-format](https://clang.llvm.org/docs/ClangFormat.html) if you want to contribute. If you do not already have [pre-commit](https://pre-commit.com/) installed, you will need to do that as well.
+This repo uses pre-commit to manage style, as described [here](https://github.com/bmorcos/pre-commit-hooks-cpp).  You will need to install [cpplint](https://pypi.org/project/cpplint/) if you want to contribute. If you do not already have [pre-commit](https://pre-commit.com/) installed, you will need to do that as well.
 
 ~~~code
 $ pip install cpplint
-$ sudo apt install clang-format
 ~~~
 
 Examples
@@ -99,6 +98,7 @@ The design procedure is as follows:
 * Step 2: Use the Design.ipynb notebook in `design/` to determine which groups (tiles) are safe, dangerous, or forbidden and decide what you want to create.  It is a good idea to check the point symmetry you have assigned to your motif using pymatgen.  This optional step is illustrated in the Design.ipynb notebook.
 * Step 3: Select a tile, then create a colloid by placing the motif inside of it (e.g., see `examples/initialize_colloid/`); you can do this in an "optimal" way by optimizing the fit (e.g., see `examples/pso_auto/`).
 * Final check: Create a unit cell (2x2 or greater is usually best) to inspect the design for its symmetry.  If you made a **safe** choice, this should be what you wanted. If you made a **dangerous** choice, you should double check (e.g., `examples/unit_cell/`).
+* Step 4: See `simulations/` directory for tools that use [LAMMPS](https://www.lammps.org/) to simulate the self-assembly of these colloidal particles.  In particular, the Preparing.ipynb notebook illustrates how to build the simulation scripts (automatically) and also analyze the results.
 
 To Do
 =====
