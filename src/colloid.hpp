@@ -83,7 +83,7 @@ class Colloid {
   double tileArea();
 
   bool isMotifInside(const int N);
-  double fractionMotifInside(const int N);
+  double fractionMotifInside(const int N = 20, const double skin = 0.0);
 
   bool isTileFundamental();
 
@@ -111,7 +111,7 @@ class Colloid {
   vector<int> getBoundaryIds() const { return boundary_ids_; }
   vector<vector<double>> getTileControlPoints() const { return tile_control_points_; }
 
-  const int countIntersections(const int N=10);
+  const int countIntersections(const int N = 10);
   const vector<vector<dvec2>> buildTilePolygon(const int N);
 
  private:

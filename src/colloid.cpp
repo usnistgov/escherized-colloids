@@ -1158,13 +1158,16 @@ const vector<vector<dvec2>> Colloid::buildTilePolygon(const int N) {
   return polygon;
 }
 
-double Colloid::fractionMotifInside(const int N = 20) {
+double Colloid::fractionMotifInside(const int N, const double skin) {
   /**
    * Compute what fraction of the motif's points are inside the tile boundary.
    *
    * The tile is discretized into points and treated as a polygon.
    *
    * @param N Number of points to discretize each edge into.
+   * @param skin A point that is inside the tile polygon is not considered
+   * "fully inside" unless it is also at least this far away from the 
+   * nearest boundary point.
    *
    * @returns double Number of points inside the tile.
    *
@@ -1183,7 +1186,25 @@ double Colloid::fractionMotifInside(const int N = 20) {
   for (size_t i = 0; i < c.size(); ++i) {
     dvec2 point = {c[i][0], c[i][1]};
     if (!isInside(polygon, point)) {
+      // If it outside the tile polygon we don't need to check the skin.
       outside += 1.0;
+    } else {
+      // If we are inside the tile polygon we need to also check the "skin"
+      // distance to all points on the polygon.
+      bool within_skin = false;
+      for (size_t edge = 0; edge < polygon.size(); ++edge) {
+        for (size_t pt = 0; pt < polygon[edge].size(); ++pt) {
+          const double d2 = pow(polygon[edge][pt].x - point.x, 2) + pow(polygon[edge][pt].y - point.y, 2);
+          if (d2 < skin*skin) {
+            within_skin = true;
+            break;
+          }
+        }
+        if (within_skin == true) {
+          outside += 1.0;
+          break;
+        }
+      }
     }
   }
 
