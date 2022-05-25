@@ -22,6 +22,7 @@ struct fn_data {
 	double df_min;
 	double eps;
 	double rc;
+	double skin;
 };
 
 static void show_usage(char *name)
@@ -38,20 +39,20 @@ static void show_usage(char *name)
               << std::endl;
 }
 
-const double pairwise(const double r, const double eps, const double rc) 
+const double pairwise(const double r, const double eps, const double rc, const double skin) 
 {
 	/**
 	 * Compute the energy of interaction between two points.
-	 * We shift this 1/r potential so it is always finite and equal to -eps at r=0;
+	 * We shift this 1/r potential so it is always finite and equal to -eps at r=skin;
 	 */
-	if (r >= rc) {
+	if ((r >= rc) || (r < skin)) {
 		return 0.0;
 	} else {
-		return -eps/(r+1);
+		return -eps/(r+1-skin);
 	}
 }
 
-const double energy(Colloid& c, const double eps, const double rc) 
+const double energy(Colloid& c, const double eps, const double rc, const double skin) 
 {
 	/**
 	 * Compute the pairwise energy between the boundary points and the motif.
@@ -63,7 +64,7 @@ const double energy(Colloid& c, const double eps, const double rc)
 	for (unsigned int i = 0; i < mc.size(); ++i) {
 		for (unsigned int j = 0; j < bc.size(); ++j) {
 			const double r = sqrt(pow(mc[i][0]-bc[j][0], 2) + pow(mc[i][1]-bc[j][1], 2));
-			u += pairwise(r, eps, rc);
+			u += pairwise(r, eps, rc, skin);
 		}
 	}
 
@@ -100,7 +101,7 @@ double area_error2(const arma::vec& vals_inp, arma::vec* grad_out, void* opt_dat
 	}
 
 	double raw_tile_area = data->c->tileArea();
-	double f_in = data->c->fractionMotifInside(20);
+	double f_in = data->c->fractionMotifInside(20, data->skin);
 	double f_out = 1.0 - f_in;
 
 	/**
@@ -133,7 +134,7 @@ double area_error2(const arma::vec& vals_inp, arma::vec* grad_out, void* opt_dat
         if (f_in == 1.0) {
 		assert(data->eps >= 0.0);
 		assert(data->rc >= 0.0);
-		loss_function += energy(*data->c, data->eps, data->rc);
+		loss_function += energy(*data->c, data->eps, data->rc, data->skin);
 	}
 
 	return loss_function;
@@ -260,6 +261,7 @@ int main(int argc, char **argv)
 		data.c->setDU(du);
 		data.c->setTileScale(1.0);
 		data.c->init();
+		data.skin = 1.13*m.minDistance()/2.0; // Fudge factor for skin
 		x_1 = data.c->getParameters(); // Initial guess is result after initialization
 	} catch (const customException& e) {
 		std::cerr << "unable to initialize colloid : " << e.getMessage() << std::endl;
@@ -325,7 +327,7 @@ int main(int argc, char **argv)
 		for (unsigned int i=0; i < f.size(); ++i) {
 			f[i] = x_1[i];
 		}
-		f[f.size()-1] = 1.25*f[f.size()-1]; // Scale the tile up
+		//f[f.size()-1] = 1.25*f[f.size()-1]; // Scale the tile up
 		try {
 			// "Revisions" to respect symmetry might change the parameters
 			// so set() and get() once to return the "true" values being

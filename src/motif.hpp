@@ -64,6 +64,8 @@ class Motif {
   const string getSymmetry() const { return symmetry_; }
   const int symmetrySuffix(const string prefix);
 
+  const double minDistance();
+
  private:
   void computeCOM_();
 

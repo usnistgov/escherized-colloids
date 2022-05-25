@@ -337,6 +337,23 @@ const int Motif::symmetrySuffix(const string prefix) {
   }
 }
 
+const double Motif::minDistance() {
+  /**
+   * Compute the minimum distance between motif points.
+   */
+  double min_d2 = PIP_INF;
+  for (size_t i=0; i < coords_.size(); ++i) {
+    for (size_t j=i+1; j < coords_.size(); ++j) {
+      const double d2 = pow(coords_[i][0] - coords_[j][0], 2) + pow(coords_[i][1] - coords_[j][1], 2);
+      if (d2 < min_d2) {
+        min_d2 = d2;
+      }
+    }
+  }
+
+  return sqrt(min_d2);
+}
+
 const int compatibility_check(Motif& m, const string prefix, const int induced) {
   /**
    * Check compatibility between the tile and motif.

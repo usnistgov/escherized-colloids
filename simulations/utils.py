@@ -457,7 +457,7 @@ class LAMMPS:
 						sigma = (colloid.sigma(i) + colloid.sigma(j))/2.0
 						eps = np.sqrt(colloid.eps(i)*colloid.eps(j))
 						r_cut = 2.5*sigma
-						r_min = 1.0e-6 # LAMMPS does not allow R=0 in tables
+						r_min = 1.0e-12 # LAMMPS does not allow R=0 in tables
 						if (colloid.involves_motif(i, j) or colloid.is_stop_codon(i) or colloid.is_stop_codon(j)):
 							# WCA interaction with motif and with any stop codon
 							r_min = 0.5*sigma
