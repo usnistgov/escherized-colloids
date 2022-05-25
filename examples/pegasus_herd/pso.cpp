@@ -243,7 +243,7 @@ int main(int argc, char **argv)
 	data.A_target = 0.0; // Minimize the area ("escherization" problem)
 	data.df_min = 0.1; // Enforce a minimum curvature
 	data.eps = eps; // Interaction energy - 0 implies no interaction between tile and boundary
-	data.rc = 0.15; // Cutoff range
+	data.rc = 0.25; // Cutoff range
 
 	// Create the colloid
 	arma::vec x_1;
@@ -314,8 +314,8 @@ int main(int argc, char **argv)
  	settings_1.print_level = 2;
 
 	settings_1.pso_settings.center_particle = false;
-	settings_1.pso_settings.n_pop = 10000; // population size of each generation.
-	settings_1.pso_settings.n_gen = 50; // number of vectors to generate (iterations).
+	settings_1.pso_settings.n_pop = 100000; // population size of each generation.
+	settings_1.pso_settings.n_gen = 100; // number of vectors to generate (iterations).
  
 	bool success_1 = optim::pso(x_1, area_error2, &data, settings_1);
  
