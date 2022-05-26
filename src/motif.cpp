@@ -344,7 +344,7 @@ const double Motif::minDistance() {
   double min_d2 = PIP_INF;
   for (size_t i=0; i < coords_.size(); ++i) {
     for (size_t j=i+1; j < coords_.size(); ++j) {
-      const double d2 = pow(coords_[i][0] - coords_[j][0], 2) + pow(coords_[i][1] - coords_[j][1], 2);
+      const double d2 = distance2(coords_[i], coords_[j]);
       if (d2 < min_d2) {
         min_d2 = d2;
       }

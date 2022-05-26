@@ -1194,7 +1194,7 @@ double Colloid::fractionMotifInside(const int N, const double skin) {
       bool within_skin = false;
       for (size_t edge = 0; edge < polygon.size(); ++edge) {
         for (size_t pt = 0; pt < polygon[edge].size(); ++pt) {
-          const double d2 = pow(polygon[edge][pt].x - point.x, 2) + pow(polygon[edge][pt].y - point.y, 2);
+          const double d2 = distance2(polygon[edge][pt], point);
           if (d2 < skin*skin) {
             within_skin = true;
             break;
@@ -1499,7 +1499,7 @@ vector<int> unique_(const vector<dvec2>& shape, const vector<int>& idx, const do
     u.push_back(idx[i]);
     for (unsigned int j=0; j < idx.size(); ++j) {
       if (i != j) {
-        double d2 = pow(shape[idx[i]].x - shape[idx[j]].x, 2) + pow(shape[idx[i]].y - shape[idx[j]].y, 2);
+        double d2 = distance2(shape[idx[i]], shape[idx[j]]);
         if (d2 < eps*eps) {
           u.pop_back();
           break;
@@ -1521,7 +1521,7 @@ void new_idx_(const vector<dvec2>& shape, vector<int>& last_edge, vector<int>& c
 
   for (unsigned int i=0; i < 2; ++i) {
     for (unsigned int j=0; j < 2; ++j) {
-      const double d2 = pow(shape[curr_edge[i]].x - shape[last_edge[j]].x, 2) + pow(shape[curr_edge[i]].y - shape[last_edge[j]].y, 2);
+      const double d2 = distance2(shape[curr_edge[i]], shape[last_edge[j]]);
       if (d2 < eps) {
         ov_ = i; // i overlaps one from last_edge
         new_ = (i+1)%2; // The other one is the new one
@@ -2154,7 +2154,7 @@ void Colloid::unitCell(vector<vector<double>>* coords, vector<string>* types,
         // Do not print duplicates
         bool duplicate = false;
         for (unsigned int k = 0; k < coords->size(); ++k) {
-          const double d2 = pow(coords->at(k)[0] - y[0], 2) + pow(coords->at(k)[1] - y[1], 2);
+          const double d2 = distance2(coords->at(k), y);
           if (d2 < tol*tol) {
             duplicate = true;
             break;

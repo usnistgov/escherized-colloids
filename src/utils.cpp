@@ -104,6 +104,22 @@ double thetaBounds(const double theta) {
   return fmod(eq_theta, 2.0*M_PI);
 }
 
+const double distance2(const dvec2 p1, const dvec2 p2) {
+  /**
+   * Compute the square Euclidean distance between two points.
+   */
+  const double d2 = pow(p1.x-p2.x, 2) + pow(p1.y-p2.y, 2);
+  return d2;
+}
+
+const double distance2(const vector<double> p1, const vector<double> p2) {
+  /**
+   * Compute the square Euclidean distance between two points.
+   */
+  const double d2 = pow(p1[0]-p2[0], 2) + pow(p1[1]-p2[1], 2);
+  return d2;
+}
+
 const int commonVertices(const dvec2 p1, const dvec2 q1, const dvec2 p2, const dvec2 q2, const double tol) {
   /**
    * Count the number of points (vertices) that are the same between different line segments.
@@ -111,11 +127,11 @@ const int commonVertices(const dvec2 p1, const dvec2 q1, const dvec2 p2, const d
   int count = 0;
   vector<double> d2;
 
-  d2.push_back(pow(p1.x-p2.x, 2) + pow(p1.y-p2.y, 2)); // p1 vs. p2
-  d2.push_back(pow(p1.x-q2.x, 2) + pow(p1.y-q2.y, 2)); // p1 vs. q2
+  d2.push_back(distance2(p1, p2)); // p1 vs. p2
+  d2.push_back(distance2(p1, q2)); // p1 vs. q2
 
-  d2.push_back(pow(q1.x-p2.x, 2) + pow(q1.y-p2.y, 2)); // q1 vs. p2
-  d2.push_back(pow(q1.x-q2.x, 2) + pow(q1.y-q2.y, 2)); // q1 vs. q2
+  d2.push_back(distance2(q1, p2)); // q1 vs. p2
+  d2.push_back(distance2(q1, q2)); // q1 vs. q2
 
   for (unsigned int i=0; i < d2.size(); ++i) {
     if (d2[i] < tol*tol) {
