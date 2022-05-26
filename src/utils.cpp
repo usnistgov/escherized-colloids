@@ -123,6 +123,7 @@ const double distance2(const vector<double> p1, const vector<double> p2) {
 const int commonVertices(const dvec2 p1, const dvec2 q1, const dvec2 p2, const dvec2 q2, const double tol) {
   /**
    * Count the number of points (vertices) that are the same between different line segments.
+   * This assumes that (p1, q1) and (p2, q2) represent different line segments.
    */
   int count = 0;
   vector<double> d2;
@@ -140,6 +141,33 @@ const int commonVertices(const dvec2 p1, const dvec2 q1, const dvec2 p2, const d
   }
 
   return count;
+}
+
+const double meeting_angle(const dvec2 p1, const dvec2 q1, const dvec2 p2, const dvec2 q2, const double tol) {
+  /**
+   * Compute the angle formed by 3 points. 4 are provided and the common one is used
+   * as the vertex.  This assumes there is only one in common, and that (p1, q1) and
+   * (p2, q2) represent different line segments.
+   */
+
+  vector<dvec2> triplet;
+  if (distance2(p1, p2) < tol*tol) {
+    triplet = {q1, p1, q2};
+  } else if (distance2(p1, q2) < tol*tol) {
+    triplet = {q1, p1, p2};
+  } else if (distance2(q1, p2) < tol*tol) {
+    triplet = {p1, q1, q2};
+  } else if (distance2(q1, q2) < tol*tol) {
+    triplet = {p1, q1, p2};
+  } else {
+    throw customException("cannot find overlapping vertex to compute angle.");
+  }
+
+  const double a2 = distance2(triplet[0], triplet[1]);
+  const double b2 = distance2(triplet[2], triplet[1]);
+  const double c2 = distance2(triplet[2], triplet[0]);
+
+  return acos( (a2 + b2 - c2) / (2.0*sqrt(a2)*sqrt(b2)));
 }
 
 const bool onSegment(const dvec2 p, const dvec2 q, const dvec2 r) {

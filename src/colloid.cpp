@@ -90,7 +90,7 @@ Colloid::Colloid() : tile_(IsohedralTiling(1)) {
   defaults_();
 }
 
-Colloid::Colloid(Motif m, IsohedralTiling t, vector<double> tile_u0, vector<double> edge_df, const double du, const bool debug)
+Colloid::Colloid(Motif m, IsohedralTiling t, vector<double> tile_u0, vector<double> edge_df, const double du, const bool debug, const double min_angle)
     : tile_(IsohedralTiling(1)) {
   /**
    * Instantiate a new colloid if all parameters are known (preferred method).
@@ -102,6 +102,7 @@ Colloid::Colloid(Motif m, IsohedralTiling t, vector<double> tile_u0, vector<doub
 
   // If you create a Colloid object manually, follow these steps to correctly initialize it.
   defaults_();
+  setMinAngle(min_angle);
   setU0(tile_u0);
   setDform(edge_df);
   setDU(du);
@@ -146,6 +147,7 @@ void Colloid::defaults_() {
   tile_assigned_ = false;
   motif_assigned_ = false;
   built_ = false;
+  setMinAngle(0.0);
   setTileScale(1.0);
   setU0({}); // size of 0 serves to indicate it has not been set yet
   setDform({}); // size of 0 serves to indicate it has not been set yet
@@ -326,11 +328,17 @@ void Colloid::setParameters(const vector<double>& params, const double df_min) {
   }
   setTileScale(params[params.size()-1]);
 
-  // 4. Check if the tile is self-intersecting
-  const int intersections = countIntersections(10);
+  // 4. Check if the tile is self-intersecting or has "bad angles"
+  int bad_angles = 0;
+  const int intersections = countIntersections(10, &bad_angles);
   if (intersections > 0) {
     stringstream ss;
     ss << "tile has " << intersections << " self-intersections";
+    throw customException(ss.str());
+  }
+  if (bad_angles > 0) {
+    stringstream ss;
+    ss << "tile has " << bad_angles << " bad angles";
     throw customException(ss.str());
   }
 
@@ -993,6 +1001,13 @@ const vector<double> Colloid::getParameters() {
   return params_;
 }
 
+void Colloid::setMinAngle(const double theta) {
+  if ((theta < 0.0) || (theta > M_PI)) {
+    throw customException("minimum angle (radians) should be 0 < angle < PI");
+  }
+  min_angle_ = theta;
+}
+
 void Colloid::setMotif(Motif m) {
   /**
    * Assign the motif by copying an existing one.
@@ -1050,19 +1065,26 @@ const IsohedralTiling Colloid::getTile() {
   }
 }
 
-const int Colloid::countIntersections(const int N) {
+const int Colloid::countIntersections(const int N, int* bad_angles) {
   /**
    * Approximate the tile's boundary as a polygon with a discrete
    * number of points on each edge and count the number of interecting
-   * line segments.
+   * line segments. This also counts the number of angles on the polygon
+   * that are below a threshold. Angles are computed as the minimum
+   * formed by a triplet of points and may point "inside" or "outside"
+   * of the tile; regardless a small angle corresponds to either a 
+   * "spike" or sharp "indent" which are usually undesirable.
    *
-   * @param Number of points to discretize each edge into.
+   * @param[in] N Number of points to discretize each edge into.
+   * @param[out] bad_angles Number of angles less than critical threshold.
    *
    * @returns The total number of intersecting pairs of line segments.
    */
 
   // Build the perimeter
   vector<vector<dvec2>> polygon = buildTilePolygon(N);
+
+  (*bad_angles) = 0;
 
   // Compare each line segment to all other line segments
   dvec2 p1, q1, p2, q2;
@@ -1087,6 +1109,13 @@ const int Colloid::countIntersections(const int N) {
           if (v == 0) { // If 1 vertex is shared, do not count as intersection
             if (doIntersect(p1, q1, p2, q2)) {
               total++;
+            }
+          } else if ((v == 1) && (edge_idx != comp_idx)) {
+            // Check the angle between them is not too "sharp".
+            // Only do this comparison at the vertices of the tile (segments on
+            // different edges).  This could be used as alternative to df_min.
+            if (meeting_angle(p1, q1, p2, q2) < min_angle_) {
+              (*bad_angles) += 1;
             }
           } else if (v == 2) {
             // If 2 vertices are shared, this is the same segment and is an error

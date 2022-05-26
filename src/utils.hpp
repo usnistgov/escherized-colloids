@@ -65,6 +65,7 @@ double thetaBounds(const double theta);
 const double distance2(const dvec2 p1, const dvec2 p2);
 const double distance2(const vector<double> p1, const vector<double> p2);
 
+const double meeting_angle(const dvec2 p1, const dvec2 q1, const dvec2 p2, const dvec2 q2, const double tol = 1.0e-12);
 const int commonVertices(const dvec2 p1, const dvec2 q1, const dvec2 p2, const dvec2 q2, const double tol = 1.0e-12);
 const bool onSegment(const dvec2 p, const dvec2 q, const dvec2 r);
 const int orientation(const dvec2 p, const dvec2 q, const dvec2 r);
