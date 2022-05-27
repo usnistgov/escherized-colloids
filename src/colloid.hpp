@@ -55,7 +55,7 @@ using json = nlohmann::json;
 class Colloid {
  public:
   Colloid();
-  Colloid(Motif m, IsohedralTiling t, vector<double> tile_u0, vector<double> edge_df, const double du = 0.1, bool debug=false, double min_angle = 0.0);
+  Colloid(Motif m, IsohedralTiling t, vector<double> tile_u0, vector<double> edge_df, const double du = 0.1, bool debug=false, double min_angle = 0.0, double min_gap = 0.0);
   ~Colloid();
 
   vector<double> unscale_coords_(const vector<double>& scaled_coords);
@@ -71,6 +71,9 @@ class Colloid {
 
   void setMinAngle(const double theta);
   double getMinAngle() const { return min_angle_; }
+
+  void setMinGap(const double gap);
+  double getMinGap() const { return min_gap_; }
 
   void setMotif(Motif m);
   Motif getMotif();
@@ -114,7 +117,7 @@ class Colloid {
   vector<int> getBoundaryIds() const { return boundary_ids_; }
   vector<vector<double>> getTileControlPoints() const { return tile_control_points_; }
 
-  const int countIntersections(const int N = 10, int *bad_angles = NULL);
+  const int countIntersections(const int N = 10, int* bad_angles = NULL, double* min_gap = NULL);
   const vector<vector<dvec2>> buildTilePolygon(const int N);
 
  private:
@@ -143,6 +146,7 @@ class Colloid {
   double tile_scale_;  // The default Tactile tile is isotropically scaled by
                        // this factor.
   double min_angle_;   // Smallest angle the tile's boundary is allow to have.
+  double min_gap_;     // Smallest distance allowable between points on non-adjacent edges
 
   vector<int> boundary_ids_;  // Chemical identities of boundary points.
   vector<double> params_;     // Unrolled parameter vector.

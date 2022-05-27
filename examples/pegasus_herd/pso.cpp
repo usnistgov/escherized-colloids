@@ -39,8 +39,9 @@ static void show_usage(char *name)
 	      << "\t-u,--du\t\tDU\tGap between boundary points\n"
 	      << "\t-e,--eps\t\tEPSILON\tThe interaction energy scale between motif and boundary points\n"
 	      << "\t-px,--px\tPARAMETERX\tSpecify tile parameter x\n"
-	      << "\t-a,--min_angle\tMINIMUM_ANGLE\tMinimum angle allowable at tile corners in DEGREES"
-              << std::endl;
+	      << "\t-a,--min_angle\tMINIMUM_ANGLE\tMinimum angle allowable at tile corners in DEGREES\n"
+              << "\t-g,--min_gap\tMINIMUM_GAP\tMinimum distance allowable between centers of tile edges."
+	      << std::endl;
 }
 
 const double pairwise(const double r, const double eps, const double n, const double cutoff_ratio, const double skin) 
@@ -127,7 +128,7 @@ double area_error2(const arma::vec& vals_inp, arma::vec* grad_out, void* opt_dat
 		p[i] = vals_inp(i);
 	}
 
-	// First check if the tile shape is even "legal".
+	// First check if the tile shape is even "legal". (no intersection, bad angles, all edges > min_gap, no "overrun", etc.)
 	try {
 		data->c->setParameters(p, data->df_min);
 	} catch ( customException& e) {
@@ -195,7 +196,7 @@ int main(int argc, char **argv)
 	int ih_number = -1, idx = -1;
 	map<int, float> p;
 	string pname = "-p", motif = "NONE", label = "";
-	double du = 0.1, eps = 0.0, min_angle = 0.0;
+	double du = 0.1, eps = 0.0, min_angle = 0.0, min_gap = 0.0;
 
 	for (int i=0; i < argc ; ++i) {
 		string arg = argv[i];
@@ -245,6 +246,14 @@ int main(int argc, char **argv)
                                 min_angle = atof(argv[i+1])*M_PI/180.0;
 				assert(min_angle >= 0.0);
 				assert(min_angle <= M_PI);
+                        } else {
+                                std::cerr << arg << " option requires one argument" << endl;
+                                return 1;
+                        }
+		} else if ( (arg == "-g") || (arg == "--min_gap") ) {
+                        if ( i+1 < argc ) {
+                                min_gap = atof(argv[i+1]);
+                                assert(min_gap >= 0.0);
                         } else {
                                 std::cerr << arg << " option requires one argument" << endl;
                                 return 1;
@@ -317,6 +326,7 @@ int main(int argc, char **argv)
 		data.c->setDU(du);
 		data.c->setTileScale(1.0);
 		data.c->setMinAngle(min_angle);
+		data.c->setMinGap(min_gap);
 		data.c->init();
 		data.skin = 1.13*m.minDistance()/2.0; // Fudge factor for skin
 		x_1 = data.c->getParameters(); // Initial guess is result after initialization

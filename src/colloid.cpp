@@ -90,7 +90,7 @@ Colloid::Colloid() : tile_(IsohedralTiling(1)) {
   defaults_();
 }
 
-Colloid::Colloid(Motif m, IsohedralTiling t, vector<double> tile_u0, vector<double> edge_df, const double du, const bool debug, const double min_angle)
+Colloid::Colloid(Motif m, IsohedralTiling t, vector<double> tile_u0, vector<double> edge_df, const double du, const bool debug, const double min_angle, const double min_gap)
     : tile_(IsohedralTiling(1)) {
   /**
    * Instantiate a new colloid if all parameters are known (preferred method).
@@ -103,6 +103,7 @@ Colloid::Colloid(Motif m, IsohedralTiling t, vector<double> tile_u0, vector<doub
   // If you create a Colloid object manually, follow these steps to correctly initialize it.
   defaults_();
   setMinAngle(min_angle);
+  setMinGap(min_gap);
   setU0(tile_u0);
   setDform(edge_df);
   setDU(du);
@@ -148,6 +149,7 @@ void Colloid::defaults_() {
   motif_assigned_ = false;
   built_ = false;
   setMinAngle(0.0);
+  setMinGap(0.0);
   setTileScale(1.0);
   setU0({}); // size of 0 serves to indicate it has not been set yet
   setDform({}); // size of 0 serves to indicate it has not been set yet
@@ -328,9 +330,11 @@ void Colloid::setParameters(const vector<double>& params, const double df_min) {
   }
   setTileScale(params[params.size()-1]);
 
-  // 4. Check if the tile is self-intersecting or has "bad angles"
+  // 4. Check if the tile is self-intersecting, has "bad angles", or has edges too
+  // close together.
   int bad_angles = 0;
-  const int intersections = countIntersections(10, &bad_angles);
+  double min_gap = PIP_INF;
+  const int intersections = countIntersections(10, &bad_angles, &min_gap);
   if (intersections > 0) {
     stringstream ss;
     ss << "tile has " << intersections << " self-intersections";
@@ -339,6 +343,11 @@ void Colloid::setParameters(const vector<double>& params, const double df_min) {
   if (bad_angles > 0) {
     stringstream ss;
     ss << "tile has " << bad_angles << " bad angles";
+    throw customException(ss.str());
+  }
+  if (min_gap < getMinGap()) {
+    stringstream ss;
+    ss << "tile has non-adjacent edge gap of " << min_gap;
     throw customException(ss.str());
   }
 
@@ -1008,6 +1017,13 @@ void Colloid::setMinAngle(const double theta) {
   min_angle_ = theta;
 }
 
+void Colloid::setMinGap(const double gap) {
+  if (gap < 0.0) {
+    throw customException("minimum gap should be >= 0");
+  }
+  min_gap_ = gap;
+}
+
 void Colloid::setMotif(Motif m) {
   /**
    * Assign the motif by copying an existing one.
@@ -1065,7 +1081,7 @@ const IsohedralTiling Colloid::getTile() {
   }
 }
 
-const int Colloid::countIntersections(const int N, int* bad_angles) {
+const int Colloid::countIntersections(const int N, int* bad_angles, double* min_gap) {
   /**
    * Approximate the tile's boundary as a polygon with a discrete
    * number of points on each edge and count the number of interecting
@@ -1073,10 +1089,13 @@ const int Colloid::countIntersections(const int N, int* bad_angles) {
    * that are below a threshold. Angles are computed as the minimum
    * formed by a triplet of points and may point "inside" or "outside"
    * of the tile; regardless a small angle corresponds to either a 
-   * "spike" or sharp "indent" which are usually undesirable.
+   * "spike" or sharp "indent" which are usually undesirable.  The minimum
+   * gap between the polygon's non-adjancent edges is also computed as a way to tell if 
+   * the tile is too awkwardly shaped.
    *
    * @param[in] N Number of points to discretize each edge into.
    * @param[out] bad_angles Number of angles less than critical threshold.
+   * @param[out] min_gap Minimum gap between non-adjacent edges.
    *
    * @returns The total number of intersecting pairs of line segments.
    */
@@ -1089,6 +1108,7 @@ const int Colloid::countIntersections(const int N, int* bad_angles) {
   // Compare each line segment to all other line segments
   dvec2 p1, q1, p2, q2;
   int total = 0;
+  vector<vector<unsigned int>> adjacent_edges;
   for (unsigned int edge_idx=0; edge_idx < polygon.size(); ++edge_idx) {
     for (unsigned int i=0; i < polygon[edge_idx].size()-1; ++i) {
       // First segment
@@ -1101,6 +1121,7 @@ const int Colloid::countIntersections(const int N, int* bad_angles) {
         if (comp_idx == edge_idx) {
           start = i+1; // On same edge, look only at "future" segments (+1).
         }
+
         for (unsigned int j=start; j < polygon[comp_idx].size()-1; ++j) {
           p2 = polygon[comp_idx][j];
           q2 = polygon[comp_idx][j+1];
@@ -1117,6 +1138,8 @@ const int Colloid::countIntersections(const int N, int* bad_angles) {
             if (meeting_angle(p1, q1, p2, q2) < min_angle_) {
               (*bad_angles) += 1;
             }
+            assert(comp_idx > edge_idx);
+            adjacent_edges.push_back({edge_idx, comp_idx});
           } else if (v == 2) {
             // If 2 vertices are shared, this is the same segment and is an error
             throw customException("cannot check intersection, segments are identical");
@@ -1125,6 +1148,38 @@ const int Colloid::countIntersections(const int N, int* bad_angles) {
       }
     }
   }
+
+  // Compute minimum distance between non-adjacent edges. Depending on how many points
+  // are used to discretize an edge, points on adjacent edges can appear to get closer,
+  // reaching a limit determined by the corner angle and relative edge lengths.  Adjacent
+  // edge proximity is effectively controlled by the min_angle; what we want to do here
+  // is make sure the non-adjacent edges don't get "sqeezed together to "pinch" off parts
+  // of the tile when we are optimizing the area.
+  double min_d2 = PIP_INF;
+  for (unsigned int edge_idx=0; edge_idx < polygon.size(); ++edge_idx) {
+    for (unsigned int comp_idx=edge_idx+1; comp_idx < polygon.size(); ++comp_idx) {
+      bool adjacent = false;
+      for (size_t i=0; i < adjacent_edges.size(); ++i) {
+        if ((adjacent_edges[i][0] == edge_idx) && (adjacent_edges[i][1] == comp_idx)) {
+          adjacent = true;
+          break;
+        }
+      }
+      if (!adjacent) {
+        for (unsigned int j=0; j < polygon[edge_idx].size(); ++j) {
+          p1 = polygon[edge_idx][j];
+          for (unsigned int k=0; k < polygon[comp_idx].size(); ++k) {
+            p2 = polygon[comp_idx][k];
+            const double d2 = distance2(p1, p2);
+            if (d2 < min_d2) {
+              min_d2 = d2;
+            }
+          }
+        }
+      }
+    }
+  }
+  *min_gap = sqrt(min_d2);
 
   return total;
 }
