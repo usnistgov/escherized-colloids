@@ -39,7 +39,7 @@ log		log.thermo
 thermo		${rec_freq}
 thermo_style	custom step atoms temp press pe ke epair etotal vol
 thermo_modify	flush yes line one norm yes
-pair_style	table linear ${bins}
+pair_style	table lookup ${bins}
 restart		${res_freq} restart_1.lammps restart_2.lammps
 
 __PAIR_COEFF__

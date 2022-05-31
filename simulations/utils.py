@@ -387,9 +387,9 @@ class LAMMPS:
 
 		If style == 'fslj':
 		Interactions are force-shifted LJ between all pairs of points, but
-		are set to WCA cutoff when boundary points are (1) unlike (i!=j) or
-		(2) involve a stop codon. No interaction (U=0) exists with motif
-		points. LB mixing rules are applied.
+		are set to WCA cutoff when boundary points are (1) unlike (i!=j), 
+		(2) involve a stop codon, or (3) a point on the motif. LB mixing rules 
+                are applied.
 		
 		If style == 'fstanh':
 		Interactions are force-shifted LJ cutoff at 2.5*sigma (WCA) when
@@ -437,9 +437,8 @@ class LAMMPS:
 						eps = np.sqrt(colloid.eps(i)*colloid.eps(j))
 						r_min = 0.7*sigma
 						if (colloid.involves_motif(i, j)):
-							# No interaction with motif (U = 0)
-							factor = 0.0
-							r_cut = 2.5*sigma
+							# WCA interaction with all
+							r_cut = 2.0**(1.0/alpha) * sigma
 						elif (colloid.is_stop_codon(i) or colloid.is_stop_codon(j)):
 							# WCA interaction between any boundary point any stop codon
 							r_cut = 2.0**(1.0/alpha) * sigma
