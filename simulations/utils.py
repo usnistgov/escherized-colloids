@@ -137,8 +137,11 @@ class Colloid:
 	def types(self):
 		return np.array([self.lammps_type(x) for x in self.boundary_types]+[self.lammps_type(x) for x in self.motif_types])
 
-	def save(self, filename):
+	def save(self, filename, overwrite=False):
 		"""Save object to disk."""
+		from os.path import exists
+		if (exists(filename) and overwrite == False):
+			raise ValueError("{} already exists".format(filename))
 		f = open(filename, 'wb')
 		import pickle
 		pickle.dump(self, f, protocol=4)
