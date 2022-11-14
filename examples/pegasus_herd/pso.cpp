@@ -9,6 +9,7 @@
 #include <iostream>
 #include <vector>
 #include <cmath>
+#include <algorithm>
 
 #include "tiling.hpp"
 #include "src/motif.hpp"
@@ -75,7 +76,7 @@ const double energy(Colloid& c, const double eps, const double n, const double c
 	for (unsigned int i = 0; i < mc.size(); ++i) {
 		for (unsigned int j = 0; j < bc.size(); ++j) {
 			const double r = sqrt(distance2(mc[i], bc[j])); 
-			u += pairwise(r, eps, n, cutoff_ratio, skin);
+			u = std::min(u, pairwise(r, eps, n, cutoff_ratio, skin));
 		}
 	}
 
@@ -302,14 +303,14 @@ int main(int argc, char **argv)
 	// Data
 	fn_data data;
 	data.verbosity = 0; // Set to > 0 to print error messages / information
-	data.penalty = 1000.0;
+	data.penalty = 100.0;
 	data.A_target = 0.0; // Minimize the area ("escherization" problem)
 	data.df_min = 0.1; // Enforce a minimum curvature
 	data.eps = eps; // Interaction energy - 0 implies no interaction between tile and boundary
 	data.n = 24;
-	data.cutoff_ratio = 1000.0;
+	data.cutoff_ratio = 100.0;
 	data.side_penalty = 10.0*eps; 
-	data.side_ratio_limit = 3.0;
+	data.side_ratio_limit = 5.0;
 
 	// Create the colloid
 	arma::vec x_1;
@@ -383,7 +384,7 @@ int main(int argc, char **argv)
  	settings_1.print_level = 2;
 
 	settings_1.pso_settings.center_particle = false;
-	settings_1.pso_settings.n_pop = 100000; // population size of each generation.
+	settings_1.pso_settings.n_pop = 10000; // population size of each generation.
 	settings_1.pso_settings.n_gen = 100; // number of vectors to generate (iterations).
  
 	bool success_1 = optim::pso(x_1, area_error2, &data, settings_1);
