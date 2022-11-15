@@ -4,7 +4,7 @@ make clean; make;
 
 # Run the code.
 # S(P|M) = d1 Examples
-#./pso -n 64 -m ../../motif_library/d1_vitruvian.json;
+./pso -n 64 -m ../../motif_library/d1_vitruvian.json;
 #./pso -n 12 -m ../../motif_library/d1_vitruvian.json;
 #./pso -n 14 -m ../../motif_library/d1_vitruvian.json;
 #./pso -n 68 -m ../../motif_library/d1_vitruvian.json;

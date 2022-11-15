@@ -15,11 +15,11 @@ for tile in 1 41 2 3 43 44 42 22 45 83 4 23 46 47 84 5 6 25 27 51 52 53 86 24 49
 	#fi	
 
 	# Using interaction between tile and motif
-	./pso -n $tile -m ../../motif_library/c1_pegasus.json -l energized_$tile -u $du -e 0.1 -a 30.0-g 0.4;
+	./pso -n $tile -m ../../motif_library/c1_pegasus.json -l energized_$tile -u $du -e 0.001 -a 25.0 -g $du;
 	cat energized_"$tile"_*.xyz >> energized_"$tile".xyz; # Summarize the results
 
 	# No interaction between tile and motif
-	./pso -n $tile -m ../../motif_library/c1_pegasus.json -l deenergized_$tile -u $du -e 0.0 -a 30.0 -g 0.4;
+	./pso -n $tile -m ../../motif_library/c1_pegasus.json -l deenergized_$tile -u $du -e 0.0 -a 25.0 -g $du;
         cat deenergized_"$tile"_*.xyz >> deenergized_"$tile".xyz; # Summarize the results
 
 	# To easily compare the two versions of the colloid

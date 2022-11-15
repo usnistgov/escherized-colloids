@@ -532,14 +532,14 @@ def watch_out_for(ih_type, dangerous, motif_point_symmetry):
     For "dangerous" cases, the motif has more symmetry than we are intentionally inducing.
     The code will place the motif so it induces at least what is required by the tile's
     properties (e.g., on a mirror line).  "Forbidden" supergroups are just groups that are
-    always strictly forbidden, but "dangerous" ones will probably work, though if the right
+    always strictly forbidden, but "dangerous" ones may work, though if the right
     set of conditions (tile shape, etc.) are met you might actually end up having (some) of 
-    those extra symmetries in the motif end up being part of the pattern.
+    those extra symmetries in the motif become part of the pattern.
     
     Logic:
     1. Start with the S(P1) you are targeting and would usually get.
     2. That S(P1) should be treated as the MTPS of another pattern, S(P2), in which the 
-        induced group S(P2|M) is a subgroup (inclusive) of S(M). 
+        induced group S(P2|M) is a proper subgroup (inclusive) of S(M). 
     - This is because you cannot allow S(P2) to require induction of more symmetry than the 
         motif has, since this is impossible for the motif provide. 
     3. We must also require that S(P2|M) > S(P1|M), since we are considering the case where 

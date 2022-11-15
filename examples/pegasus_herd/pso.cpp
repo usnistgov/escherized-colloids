@@ -10,6 +10,7 @@
 #include <vector>
 #include <cmath>
 #include <algorithm>
+#include <omp.h>
 
 #include "tiling.hpp"
 #include "src/motif.hpp"
@@ -56,7 +57,7 @@ const double pairwise(const double r, const double eps, const double n, const do
 	assert(n >= 1.0);
 	assert(cutoff_ratio >= 1.0);
 	assert(skin >= 0.0);	
-	const double rc = pow(cutoff_ratio, 1.0/n) - skin + 1.0;
+	const double rc = pow(cutoff_ratio, 1.0/n) + skin - 1.0;
 	if ((r >= rc) || (r < skin)) {
 		return 0.0;
 	} else {
@@ -72,15 +73,20 @@ const double energy(Colloid& c, const double eps, const double n, const double c
 	const vector<vector<double>> mc = c.getMotif().getCoords();
 	const vector<vector<double>> bc = c.getBoundaryCoords();
 
-	double u = 0.0;
-	for (unsigned int i = 0; i < mc.size(); ++i) {
-		for (unsigned int j = 0; j < bc.size(); ++j) {
+	double u_tot = 0.0;
+	for (unsigned int j = 0; j < bc.size(); ++j) {
+		double u_bead = 0.0;
+		for (unsigned int i = 0; i < mc.size(); ++i) {
 			const double r = sqrt(distance2(mc[i], bc[j])); 
-			u = std::min(u, pairwise(r, eps, n, cutoff_ratio, skin));
+			const double u_tmp = pairwise(r, eps, n, cutoff_ratio, skin);
+			if (u_tmp < u_bead) {
+				u_bead = u_tmp; // Each boundary "bead" only interacts with its most favorable motif "bead"
+			}
 		}
+		u_tot += u_bead;
 	}
 
-	return u;
+	return u_tot / bc.size(); // Bound the contribution to no more than eps so that is always a minor affect
 }
 
 const double side_length_penalty(Colloid& c, const double penalty, const double max_min_limit = 10.0) {
@@ -197,7 +203,7 @@ int main(int argc, char **argv)
 	int ih_number = -1, idx = -1;
 	map<int, float> p;
 	string pname = "-p", motif = "NONE", label = "";
-	double du = 0.1, eps = 0.0, min_angle = 0.0, min_gap = 0.0;
+	double du = 0.1, eps = 0.0, min_angle = 0.0, min_gap = 0.0, target_area = 0.0;
 
 	for (int i=0; i < argc ; ++i) {
 		string arg = argv[i];
@@ -266,6 +272,14 @@ int main(int argc, char **argv)
                                 std::cerr << arg << " option requires one argument" << endl;
                                 return 1;
                         }
+		} else if ( (arg == "-t") || (arg == "--target") ) {
+                        if ( i+1 < argc ) {
+                                target_area = atof(argv[i+1]);
+                                assert(target_area >= 0.0);
+                        } else {
+                                std::cerr << arg << " option requires one argument" << endl;
+                                return 1;
+                        }
 		} else if ( "-p" == arg.substr(0, 2) ) {
 			int n = atoi( arg.substr(2, arg.length()).c_str() );
 			if ( (n < 0) || (n > 5) ) { // At most there are 6 tile parameters
@@ -303,14 +317,14 @@ int main(int argc, char **argv)
 	// Data
 	fn_data data;
 	data.verbosity = 0; // Set to > 0 to print error messages / information
-	data.penalty = 100.0;
-	data.A_target = 0.0; // Minimize the area ("escherization" problem)
+	data.penalty = 1000.0;
+	data.A_target = target_area;
 	data.df_min = 0.1; // Enforce a minimum curvature
 	data.eps = eps; // Interaction energy - 0 implies no interaction between tile and boundary
 	data.n = 24;
-	data.cutoff_ratio = 100.0;
-	data.side_penalty = 10.0*eps; 
-	data.side_ratio_limit = 5.0;
+	data.cutoff_ratio = 1000.0;
+	data.side_penalty = data.penalty; 
+	data.side_ratio_limit = 3.0; // Max un-penalized ratio of max/min sides
 
 	// Create the colloid
 	arma::vec x_1;
@@ -384,8 +398,9 @@ int main(int argc, char **argv)
  	settings_1.print_level = 2;
 
 	settings_1.pso_settings.center_particle = false;
-	settings_1.pso_settings.n_pop = 10000; // population size of each generation.
-	settings_1.pso_settings.n_gen = 100; // number of vectors to generate (iterations).
+	settings_1.pso_settings.n_pop = 100000; // population size of each generation.
+	settings_1.pso_settings.n_gen = 200; // number of vectors to generate (iterations).
+	settings_1.pso_settings.check_freq = settings_1.pso_settings.n_gen/20; // When to check for improvement
  
 	bool success_1 = optim::pso(x_1, area_error2, &data, settings_1);
 	bool success_2 = (data.c->fractionMotifInside(20, data.skin) > 0.99999999);
@@ -425,14 +440,33 @@ int main(int argc, char **argv)
 	} else {
 		std::cout << "pso: Area minimization completed unsuccessfully : ";
 		if (!success_2) {
+			// This is in an invalid configuration - do not report this
 			std::cout << "motif was not fully enclosed." << std::endl;
 		} else {
+			// While it failed to converge, this is still the best answer it could find so far
 			std::cout << "pso failed to converge." << std::endl;
+			std::vector<double> f(x_1.size(), 0.0);
+			for (unsigned int i=0; i < f.size(); ++i) {
+				f[i] = x_1[i];
+			}
+			data.c->setParameters(f); // Relative position of motif unchanged
+			stringstream ss;
+			ss << label << "_failed.xyz";
+			data.c->dumpXYZ(ss.str(), true);
+			ss.str("");
+			ss << label << "_failed.json";
+			data.c->dump(ss.str());
 		}
+		delete data.c;
+		return 1;
 	}
 
         x_1 = data.c->getParameters();	
 	arma::cout << "pso: solution to Area minimization test:\n" << x_1 << arma::endl;
+	
+	if (fabs(data.c->tileArea() - target_area) > 1.0e-6) {
+		std::cerr << "*** WARNING : Did not achieve target area to tolerance; tile area = " << data.c->tileArea() << "; target area = " << target_area << " *** " << std::endl;
+	}
 	
 	delete data.c;
 

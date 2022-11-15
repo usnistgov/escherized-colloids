@@ -40,12 +40,13 @@ Optimizations are performed using the [OptimLib](https://optimlib.readthedocs.io
 
 ~~~code
 $ sudo apt install libopenblas-dev
+$ sudo apt install libomp-dev
 $ sudo apt install libarmadillo-dev
 $ git clone https://github.com/kthohr/optim ./optim
 $ cd optim
 $ git submodule update --init
-$ export ARMA_INCLUDE_PATH=/usr/include/; 
-$ ./configure -l arma --header-only-version
+$ export ARMA_INCLUDE_PATH=/usr/include/;
+$ ./configure ---header-only-version
 ~~~
 
 See [here](https://optimlib.readthedocs.io/en/latest/installation.html) for more details on installing it as a header only library.
@@ -55,7 +56,7 @@ When compiling your code, add `#define OPTIM_ENABLE_ARMA_WRAPPERS` and `#include
 You should also perform tests as described [here](https://optimlib.readthedocs.io/en/latest/examples_and_tests.html).
 
 ### GoogleTest (optional)
-If you want to run tests to check the code (recommended) you need to install [GoogleTest](https://github.com/google/googletest).  This installation procedure also requires [CMake](http://www.cmake.org/) and superuser privileges. Note: this project currently is set up for c++11, however, googltest has moved to c++14 by default, so use the last c++11 release (v1.12.1) for backward compatibility.
+If you want to run tests to check the code (recommended) you need to install [GoogleTest](https://github.com/google/googletest).  This installation procedure also requires [CMake](http://www.cmake.org/) and superuser privileges. Note: this project currently is set up for c++11, however, googletest has moved to c++14 by default, so use the last c++11 release (v1.12.1) for backward compatibility.
 
 ~~~code
 $ git clone https://github.com/google/googletest.git --branch release-1.12.1 

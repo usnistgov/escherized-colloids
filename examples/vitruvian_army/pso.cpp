@@ -9,6 +9,8 @@
 #include <iostream>
 #include <vector>
 #include <cmath>
+#include <algorithm>
+#include <omp.h>
 
 #include "tiling.hpp"
 #include "src/motif.hpp"
@@ -21,8 +23,11 @@ struct fn_data {
 	double penalty;
 	double df_min;
 	double eps;
-	double rc;
+	double n;
+	double cutoff_ratio;
 	double skin;
+	double side_penalty;
+	double side_ratio_limit;
 };
 
 static void show_usage(char *name)
@@ -35,24 +40,32 @@ static void show_usage(char *name)
 	      << "\t-m,--motif\t\tMOTIF\tJSON file with motif in it\n"
 	      << "\t-u,--du\t\tDU\tGap between boundary points\n"
 	      << "\t-e,--eps\t\tEPSILON\tThe interaction energy scale between motif and boundary points\n"
-	      << "\t-px,--px\tPARAMETERX\tSpecify tile parameter x"
-              << std::endl;
+	      << "\t-px,--px\tPARAMETERX\tSpecify tile parameter x\n"
+	      << "\t-a,--min_angle\tMINIMUM_ANGLE\tMinimum angle allowable at tile corners in DEGREES\n"
+              << "\t-g,--min_gap\tMINIMUM_GAP\tMinimum distance allowable between centers of tile edges."
+	      << std::endl;
 }
 
-const double pairwise(const double r, const double eps, const double rc, const double skin) 
+const double pairwise(const double r, const double eps, const double n, const double cutoff_ratio, const double skin) 
 {
 	/**
 	 * Compute the energy of interaction between two points.
-	 * We shift this 1/r potential so it is always finite and equal to -eps at r=skin;
+	 * We shift this 1/r^n potential so it is always finite and equal to -eps at r=skin.
+	 * The cutoff is determined so that U(r_cut)/(-eps) = 1/cutoff_ratio.
 	 */
+	assert(eps >= 0.0);
+	assert(n >= 1.0);
+	assert(cutoff_ratio >= 1.0);
+	assert(skin >= 0.0);	
+	const double rc = pow(cutoff_ratio, 1.0/n) + skin - 1.0;
 	if ((r >= rc) || (r < skin)) {
 		return 0.0;
 	} else {
-		return -eps/(r+1-skin);
+		return -eps/pow(r + 1.0 - skin, n);
 	}
 }
 
-const double energy(Colloid& c, const double eps, const double rc, const double skin) 
+const double energy(Colloid& c, const double eps, const double n, const double cutoff_ratio, const double skin) 
 {
 	/**
 	 * Compute the pairwise energy between the boundary points and the motif.
@@ -60,15 +73,49 @@ const double energy(Colloid& c, const double eps, const double rc, const double 
 	const vector<vector<double>> mc = c.getMotif().getCoords();
 	const vector<vector<double>> bc = c.getBoundaryCoords();
 
-	double u = 0.0;
-	for (unsigned int i = 0; i < mc.size(); ++i) {
-		for (unsigned int j = 0; j < bc.size(); ++j) {
-			const double r = sqrt(pow(mc[i][0]-bc[j][0], 2) + pow(mc[i][1]-bc[j][1], 2));
-			u += pairwise(r, eps, rc, skin);
+	double u_tot = 0.0;
+	for (unsigned int j = 0; j < bc.size(); ++j) {
+		double u_bead = 0.0;
+		for (unsigned int i = 0; i < mc.size(); ++i) {
+			const double r = sqrt(distance2(mc[i], bc[j])); 
+			const double u_tmp = pairwise(r, eps, n, cutoff_ratio, skin);
+			if (u_tmp < u_bead) {
+				u_bead = u_tmp; // Each boundary "bead" only interacts with its most favorable motif "bead"
+			}
 		}
+		u_tot += u_bead;
 	}
 
-	return u;
+	return u_tot / bc.size(); // Bound the contribution to no more than eps so that is always a minor affect
+}
+
+const double side_length_penalty(Colloid& c, const double penalty, const double max_min_limit = 10.0) {
+	/**
+	 * Penalize the configuration by the ratio between the longest and shortest distance
+	 * between control points on the tile.
+	 */
+	assert(penalty >= 0.0);
+	assert(max_min_limit >= 1.0);
+
+	const vector<vector<double>> cp = c.getTileControlPoints();
+	double min_d2 = PIP_INF, max_d2 = 0.0;
+	for (size_t i=0; i < cp.size(); i++) {
+		for (size_t j=i+1; j < cp.size(); ++j) {
+			const double d2 = distance2(cp[i], cp[j]);
+			if (d2 < min_d2) {
+				min_d2 = d2;
+			}
+			if (d2 > max_d2) {
+				max_d2 = d2;
+			}
+		}
+	}
+	
+	const double delta = sqrt(max_d2/min_d2)/max_min_limit - 1.0;
+	if (delta > 0.0) {
+		return penalty*delta;
+	}
+	return 0.0;
 }
 
 double area_error2(const arma::vec& vals_inp, arma::vec* grad_out, void* opt_data)
@@ -87,6 +134,8 @@ double area_error2(const arma::vec& vals_inp, arma::vec* grad_out, void* opt_dat
 	for( size_t i = 0; i < p.size(); ++i ) {
 		p[i] = vals_inp(i);
 	}
+
+	// First check if the tile shape is even "legal". (no intersection, bad angles, all edges > min_gap, no "overrun", etc.)
 	try {
 		data->c->setParameters(p, data->df_min);
 	} catch ( customException& e) {
@@ -100,6 +149,7 @@ double area_error2(const arma::vec& vals_inp, arma::vec* grad_out, void* opt_dat
 		return data->penalty;
 	}
 
+	// If the tile shape is "legal" then we need to optimize the motif inside of it.
 	double raw_tile_area = data->c->tileArea();
 	double f_in = data->c->fractionMotifInside(20, data->skin);
 	double f_out = 1.0 - f_in;
@@ -122,19 +172,21 @@ double area_error2(const arma::vec& vals_inp, arma::vec* grad_out, void* opt_dat
 	 * library, but penalty should be chosen to be commensurate with it.
 	 *
 	 * We also add an energetic "benefit" to try to move the boundary points to be "close" to
-	 * the motif's points for practical purposes. The 1/r potential used means that energy is
-	 * strictly minimized for an individual bead when it coincides with the tile edge; for a
-	 * many-body system the minimum could be to place the motif so it is centered on the edge
-	 * with some points inside and others outside of the tile, which is undesirable. We add
-	 * the (negative) energy only when the motif is entirely "inside" the tile.  
+	 * the motif's points for practical purposes. The 1/r^n potential used means that energy is
+	 * strictly minimized for an individual bead when it coincides with the tile edge (+skin); 
+	 * for a many-body system the minimum could be to place the motif so it is centered on the 
+	 * edge with some points inside and others outside of the tile, which is undesirable. We add
+	 * the (negative) energy only when the motif is entirely "inside" the tile. 
+	 *
+	 * The side length penalty can be used to try to keep the edges of the tile from going to
+	 * zero. This is applied only when the motif is fully "inside" the tile. 
 	 */
 	const double motif_fit_penalty = f_out*(data->penalty + 1.0/raw_tile_area);
 	const double effective_area = motif_fit_penalty + raw_tile_area;
 	double loss_function = pow(effective_area - data->A_target, 2);
         if (f_in == 1.0) {
-		assert(data->eps >= 0.0);
-		assert(data->rc >= 0.0);
-		loss_function += energy(*data->c, data->eps, data->rc, data->skin);
+		loss_function += energy(*data->c, data->eps, data->n, data->cutoff_ratio, data->skin);
+		loss_function += side_length_penalty(*data->c, data->side_penalty, data->side_ratio_limit);
 	}
 
 	return loss_function;
@@ -151,7 +203,7 @@ int main(int argc, char **argv)
 	int ih_number = -1, idx = -1;
 	map<int, float> p;
 	string pname = "-p", motif = "NONE", label = "";
-	double du = 0.1, eps = 0.0;
+	double du = 0.1, eps = 0.0, min_angle = 0.0, min_gap = 0.0, target_area = 0.0;
 
 	for (int i=0; i < argc ; ++i) {
 		string arg = argv[i];
@@ -196,9 +248,34 @@ int main(int argc, char **argv)
                                 std::cerr << arg << " option requires one argument" << endl;
                                 return 1;
                         }
+		} else if ( (arg == "-a") || (arg == "--min_angle") ) {
+                        if ( i+1 < argc ) {
+                                min_angle = atof(argv[i+1])*M_PI/180.0;
+				assert(min_angle >= 0.0);
+				assert(min_angle <= M_PI);
+                        } else {
+                                std::cerr << arg << " option requires one argument" << endl;
+                                return 1;
+                        }
+		} else if ( (arg == "-g") || (arg == "--min_gap") ) {
+                        if ( i+1 < argc ) {
+                                min_gap = atof(argv[i+1]);
+                                assert(min_gap >= 0.0);
+                        } else {
+                                std::cerr << arg << " option requires one argument" << endl;
+                                return 1;
+                        }
 		} else if ( (arg == "-e") || (arg == "--eps") ) {
                         if ( i+1 < argc ) {
                                 eps = atof(argv[i+1]);
+                        } else {
+                                std::cerr << arg << " option requires one argument" << endl;
+                                return 1;
+                        }
+		} else if ( (arg == "-t") || (arg == "--target") ) {
+                        if ( i+1 < argc ) {
+                                target_area = atof(argv[i+1]);
+                                assert(target_area >= 0.0);
                         } else {
                                 std::cerr << arg << " option requires one argument" << endl;
                                 return 1;
@@ -241,10 +318,13 @@ int main(int argc, char **argv)
 	fn_data data;
 	data.verbosity = 0; // Set to > 0 to print error messages / information
 	data.penalty = 1000.0;
-	data.A_target = 0.0; // Minimize the area ("escherization" problem)
+	data.A_target = target_area;
 	data.df_min = 0.1; // Enforce a minimum curvature
 	data.eps = eps; // Interaction energy - 0 implies no interaction between tile and boundary
-	data.rc = 3*du; // Cutoff range
+	data.n = 24;
+	data.cutoff_ratio = 1000.0;
+	data.side_penalty = data.penalty; 
+	data.side_ratio_limit = 3.0; // Max un-penalized ratio of max/min sides
 
 	// Create the colloid
 	arma::vec x_1;
@@ -260,6 +340,8 @@ int main(int argc, char **argv)
 		data.c->setDform(df);
 		data.c->setDU(du);
 		data.c->setTileScale(1.0);
+		data.c->setMinAngle(min_angle);
+		data.c->setMinGap(min_gap);
 		data.c->init();
 		data.skin = 1.13*m.minDistance()/2.0; // Fudge factor for skin
 		x_1 = data.c->getParameters(); // Initial guess is result after initialization
@@ -286,7 +368,7 @@ int main(int argc, char **argv)
         }
 
 	// Tile scale - use a factor on the initial scale found
-	lb(3+t.numParameters()+2*t.numEdgeShapes()) = 0.25*x_1[x_1.size()-1]; 
+	lb(3+t.numParameters()+2*t.numEdgeShapes()) = 0.5*x_1[x_1.size()-1]; 
 
 	arma::vec ub = arma::zeros(x_1.size(), 1); // Upper bounds
 	ub(0) = 1.0; // Motif scaled_com_x
@@ -306,7 +388,7 @@ int main(int argc, char **argv)
         }
 
 	// Tile scale - use a factor on the initial scale found
-	ub(3+t.numParameters()+2*t.numEdgeShapes()) = 4.0*x_1[x_1.size()-1]; 
+	ub(3+t.numParameters()+2*t.numEdgeShapes()) = 2.0*x_1[x_1.size()-1]; 
 
 	optim::algo_settings_t settings_1;
 	
@@ -317,17 +399,18 @@ int main(int argc, char **argv)
 
 	settings_1.pso_settings.center_particle = false;
 	settings_1.pso_settings.n_pop = 100000; // population size of each generation.
-	settings_1.pso_settings.n_gen = 100; // number of vectors to generate (iterations).
+	settings_1.pso_settings.n_gen = 200; // number of vectors to generate (iterations).
+	settings_1.pso_settings.check_freq = settings_1.pso_settings.n_gen/20; // When to check for improvement
  
 	bool success_1 = optim::pso(x_1, area_error2, &data, settings_1);
- 
-	if (success_1) {
+	bool success_2 = (data.c->fractionMotifInside(20, data.skin) > 0.99999999);
+
+	if (success_1 && success_2) {
 		std::cout << "pso: Area minimization completed successfully." << std::endl;
 		std::vector<double> f(x_1.size(), 0.0);
 		for (unsigned int i=0; i < f.size(); ++i) {
 			f[i] = x_1[i];
 		}
-		//f[f.size()-1] = 1.25*f[f.size()-1]; // Scale the tile up
 		try {
 			// "Revisions" to respect symmetry might change the parameters
 			// so set() and get() once to return the "true" values being
@@ -355,11 +438,35 @@ int main(int argc, char **argv)
 			return 1;
 		}
 	} else {
-		std::cout << "pso: Area minimization completed unsuccessfully." << std::endl;
+		std::cout << "pso: Area minimization completed unsuccessfully : ";
+		if (!success_2) {
+			// This is in an invalid configuration - do not report this
+			std::cout << "motif was not fully enclosed." << std::endl;
+		} else {
+			// While it failed to converge, this is still the best answer it could find so far
+			std::cout << "pso failed to converge." << std::endl;
+			std::vector<double> f(x_1.size(), 0.0);
+			for (unsigned int i=0; i < f.size(); ++i) {
+				f[i] = x_1[i];
+			}
+			data.c->setParameters(f); // Relative position of motif unchanged
+			stringstream ss;
+			ss << label << "_failed.xyz";
+			data.c->dumpXYZ(ss.str(), true);
+			ss.str("");
+			ss << label << "_failed.json";
+			data.c->dump(ss.str());
+		}
+		delete data.c;
+		return 1;
 	}
 
         x_1 = data.c->getParameters();	
 	arma::cout << "pso: solution to Area minimization test:\n" << x_1 << arma::endl;
+	
+	if (fabs(data.c->tileArea() - target_area) > 1.0e-6) {
+		std::cerr << "*** WARNING : Did not achieve target area to tolerance; tile area = " << data.c->tileArea() << "; target area = " << target_area << " *** " << std::endl;
+	}
 	
 	delete data.c;
 
