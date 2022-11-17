@@ -29,7 +29,6 @@ static void show_usage(char *name)
               << "Options:\n"
               << "\t-h,--help\t\tShow this help message\n"
               << "\t-n,--number\t\tISOHEDRAL TILE\tSpecify the IH Tile number\n"
-	      << "\t-f,--filename\t\tFILENAME\tSpecify the file to write to\n"
 	      << "\t-m,--motif\t\tMOTIF\tJSON file with motif in it\n"
 	      << "\t-px,--px\tPARAMETERX\tSpecify tile parameter x"
               << std::endl;
@@ -44,7 +43,7 @@ int main( int argc, char **argv )
 	
 	int ih_number = -1, idx = -1;
 	map<int, float> p;
-	string filename = "NONE", pname = "-p", motif = "NONE";
+	string pname = "-p", motif = "NONE";
 
 	for ( int i=0; i < argc ; ++i ) {
 		string arg = argv[i];
@@ -74,13 +73,6 @@ int main( int argc, char **argv )
 			} else {
 				cerr << arg << " option requires one argument" << endl;
 				return 1;
-			}
-		} else if ( (arg == "-f") || (arg == "--filename") ) {
-			if ( i+1 < argc ) {
-				filename = string(argv[i+1]);
-			} else {
-				cerr << arg << " option requires one argument" << endl;
-                                return 1;
 			}
 		} else if ( "-p" == arg.substr(0, 2) ) {
 			int n = atoi( arg.substr(2, arg.length()).c_str() );
@@ -126,7 +118,7 @@ int main( int argc, char **argv )
 		vector<double> u0(t.numEdgeShapes(), 0.25);
                 vector<double> df(t.numEdgeShapes(), 0.25);
 		Colloid c(m, t, u0, df, 0.1, true);
-		c.dumpXYZ("colloid.xyz", false);
+		c.dumpXYZ("colloid.xyz", true);
 		
 		vector<vector<double>> c_, b_;
                 vector<string> t_;

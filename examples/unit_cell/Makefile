@@ -34,4 +34,4 @@ unit_cell.o: unit_cell.cpp
 	$(CPP) $(CPPFLAGS) $^ -c -o $@
 
 clean:
-	rm -f *.o unit_cell unit_cell.xyz colloid.xyz
+	rm -f *.o unit_cell unit_cell*.xyz colloid*.xyz *debug*

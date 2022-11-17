@@ -34,4 +34,4 @@ pso.o: pso.cpp
 	$(CPP) $(CPPFLAGS) -march=native -ffp-contract=fast -I/usr/include/ -I../../optim/header_only_version $^ -c -o $@
 
 clean:
-	rm -f *.o pso success.json success.xyz
+	rm -f *.o pso *success*.json *success*.xyz *unit_cell*
