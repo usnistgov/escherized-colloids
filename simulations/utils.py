@@ -2,10 +2,14 @@
 Utilities to create and analyze LAMMPS simulations from a "colloid" prepared by C++ code.
 """
 import json
+import copy
+import scipy
+
 import scipy as sp
 import numpy as np
+import matplotlib.pyplot as plt
+
 from scipy.optimize import minimize
-import copy
 
 class Colloid:
 	"""
@@ -915,11 +919,11 @@ def between_frame_distance_variance(frame1, frame2, molecule_size, n_each=100):
 
 def compare_distance_variations(simulation):
     plt.plot(np.arange(len(simulation.frames)),
-             [within_frame_variance(simulation.frames[i], molecule_size=44, n_each=100) for i in range(len(simulation.frames))],
+             [within_frame_distance_variance(simulation.frames[i], molecule_size=44, n_each=100) for i in range(len(simulation.frames))],
             label='Within Frame')
 
     plt.plot(np.arange(len(simulation.frames)),
-             [between_frame_variance(simulation.frames[0], simulation.frames[i], molecule_size=44, n_each=100) 
+             [between_frame_distance_variance(simulation.frames[0], simulation.frames[i], molecule_size=44, n_each=100) 
               for i in range(len(simulation.frames))],
             label='Between Frames')
     plt.legend(loc='best')
