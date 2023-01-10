@@ -1,10 +1,11 @@
 #!/bin/bash
 #
-#SBATCH -n __CORES__
-#SBATCH -N __NODES__
+#SBATCH -n 32
+#SBATCH -N 1
 #SBATCH -t 1-0:0
 #SBATCH -J __NAME__
 #SBATCH --export=all
+#SBATCH --partition=mml
 
 cd $SLURM_SUBMIT_DIR
 
@@ -12,6 +13,7 @@ echo "Running on $(hostname)";
 echo "Time: $(date)";
 echo "Starting directory: $PWD";
 
-mpirun -bind-to core /home/nam4/lammps/build/lmp_mpi -in input.lmp;
+#mpirun -bind-to core
+srun /home/nam4/lammps/build/lmp_mpi -in input.lmp;
 
 echo "Finished on $(date)";

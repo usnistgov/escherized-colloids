@@ -165,7 +165,7 @@ class Analysis:
 
 		start = []
 		end = []
-		keys = 'Step Atoms Temp Press PotEng KinEng E_pair TotEng Volume'
+		keys = 'Step        Atoms         Temp          Press          PotEng         KinEng         E_pair         TotEng         Volume'
 		for i,l in enumerate(lines):
 			if keys in l:
 				start.append(i+1)
@@ -217,21 +217,39 @@ class Analysis:
 				if int(l.strip().split('=')[-1]) > 0:
 					raise Exception('Dangerous builds found in {}'.format(log_filename))
 
-		# 2. Check max distance to body ownership
+		# 2. Check for rigid body drifts
+		dist, pseudo_diameter = Analysis.max_body_owner_distances(log_filename)
+		if np.max(dist) > pseudo_diameter:
+			raise Exception('Max distance from body owner to body atom ({}) exceeds pseudo_diameter ({})'.format(np.max(dist), pseudo_diameter))
+
+		return True
+
+	@staticmethod
+	def max_body_owner_distances(log_filename):
+		"""
+		Get the max distances from rigid beads to body owner.
+		
+		Returns
+		-------
+		distances : list, pseudo_diameter : float
+			List of max distances over time, cutoff used in comm_modify for fix/rigid/small (https://docs.lammps.org/fix_rigid.html).
+		"""
+		f = open(log_filename, 'r')
+		lines = f.readlines()
+		f.close()
+
 		for i,l in enumerate(lines):
 			if "comm_cut" in l:
 				ctr = i+1
 				break
-        
+
+		distances = []
 		for l in lines:
 			if "max distance from body owner to body atom" in l:
 				d = float(l.strip().split('=')[0])
-				pseudo_diameter = float(lines[ctr].split()[4])
-				if d > pseudo_diameter:
-					raise Exception('Max distance from body owner to body atom ({}) exceeds pseudo_diameter ({})'.format(d, pseudo_diameter))
-
-		f.close()
-		return True
+				distances.append(d)
+		
+		return distances, float(lines[ctr].split()[4])
 
 	@staticmethod
 	def unwrap(coords, box):
@@ -541,8 +559,9 @@ class LAMMPS:
 			args=[
 				coords.copy(),
 				],
-			method="L-BFGS-B",
+			method="Nelder-Mead", #"L-BFGS-B",
 			bounds=[(0, np.pi)],
+			options={'maxiter':50000}
 		)  # not 2*pi
 
 		if result.success:
@@ -721,3 +740,186 @@ class LAMMPS:
 		pseudo_diameter = np.sqrt(np.sum((bbox_[:,1] - bbox_[:,0])**2))
 		return pseudo_diameter
 
+class Frame:
+    def __init__(self):
+        self._coords = []
+        self._types = []
+        self._box = []
+    
+    def set_coords(self, coords):
+        self._coords = np.array(coords, dtype=np.float64)
+        
+    def set_types(self, types):
+        self._types = np.array(types, dtype=np.int32)
+        
+    def set_box(self, box):
+        self._box = np.array(box)
+        
+    def assign(self, coords, types, box):
+        self.set_coords(coords)
+        self.set_types(types)
+        self.set_box(box)
+        
+    def extensive(self, coords):
+        coords_ = copy.deepcopy(coords)
+        coords_ *= (self._box[:,1] - self._box[:,0])
+        coords_ += self._box[:,0]
+        return coords_
+        
+    def get_molecules(self, molecule_size):
+        start = 0
+        molecules = []
+        atom_types = []
+        while start < len(self._coords):
+            molecules.append(self._coords[start:start+molecule_size])
+            atom_types.append(self._types[start:start+molecule_size])
+            start += molecule_size
+        return molecules, atom_types
+            
+    def unwrap(self, molecule_size):
+        """Assumes square box of unit size containing 1 type of molecule."""
+        new_frame = copy.deepcopy(self)
+
+        start = 0
+        unwrapped = np.empty((0, 2), dtype=np.float64)
+        while start < len(self._coords):
+            unwrapped = np.vstack(
+                (unwrapped, Analysis.unwrap(self._coords[start:start+molecule_size], [1, 1]))
+            )
+            start += molecule_size
+        new_frame.set_coords(unwrapped)
+
+        return new_frame
+        
+    def plot(self, molecule_size=0, extensive=True):
+        """If size = 0, do not unwrap."""
+        plt.figure()
+        
+        if molecule_size > 0:
+            plot_frame = self.unwrap(molecule_size)
+        else:
+            plot_frame = copy.deepcopy(self)
+            
+        if extensive:
+            box = plot_frame.box
+            coords = plot_frame.extensive(plot_frame.coords)
+        else:
+            box = np.array([
+                [0, 1],
+                [0, 1]
+            ])
+            coords = plot_frame.coords
+        
+        x_corners = [
+            [box[0, 0], box[0, 0]],
+            [box[0, 0], box[0, 1]],
+            [box[0, 1], box[0, 1]],
+            [box[0, 0], box[0, 1]],
+        ]
+        y_corners = [
+            [box[1, 0], box[1, 1]],
+            [box[1, 1], box[1, 1]],
+            [box[1, 0], box[1, 1]],
+            [box[1, 0], box[1, 0]],
+        ]
+        
+        plt.plot(coords[:,0], coords[:,1], '.')
+        
+        for i in range(4):
+            plt.plot(x_corners[i], y_corners[i], '-', color='k')
+            
+        plt.axis('equal')
+        
+    @property
+    def coords(self):
+        return copy.copy(self._coords)
+
+    @property
+    def types(self):
+        return copy.copy(self._types)
+    
+    @property
+    def box(self):
+        return copy.copy(self._box)
+    
+class Simulation:
+    def __init__(self, filename=None):
+        self._frames = []
+        if filename:
+            self._filename = filename
+            self.read(self._filename)
+        
+    def read(self, filename='log.dump'):
+        f = open(filename)
+        data = f.readlines()
+        f.close()
+        
+        counter = 0
+        while counter < len(data):
+            n_atoms = int(data[3+counter].strip())
+
+            box = [[float(x) for x in data[5+counter].strip().split()]]
+            box.append([float(x) for x in data[6+counter].strip().split()])
+
+            types = []
+            coords = []
+            for row in data[9+counter:9+counter+n_atoms]:
+                raw = row.strip().split()
+                coords.append([float(raw[2]), float(raw[3])])
+                types.append(int(raw[1]))
+
+            frame = Frame()
+            frame.assign(coords, types, box)
+
+            counter += (n_atoms + 9)
+            self._frames.append(frame)
+    
+    @property
+    def filename(self):
+        return copy(self._filename)
+    
+    @property
+    def frames(self):
+        """For memory's sake do not copy."""
+        return self._frames
+    
+def within_frame_distance_variance(frame, molecule_size, n_each=100):
+    mol, types = frame.unwrap(molecule_size).get_molecules(molecule_size)
+    
+    d = []
+    for i in range(0, n_each):
+        # pdist within molecule i
+        distances1 = scipy.spatial.distance.pdist(frame.extensive(mol[i]), metric='euclidean')
+        for j in range(i+1, n_each):
+            # pdist within molecule j
+            distances2 = scipy.spatial.distance.pdist(frame.extensive(mol[j]), metric='euclidean')
+            
+            # max difference in pdist between i and j
+            d.append(np.max(distances1 - distances2))
+            
+    # max pairwise distance
+    return np.max(d)
+
+def between_frame_distance_variance(frame1, frame2, molecule_size, n_each=100):
+    mol1, types1 = frame1.unwrap(molecule_size).get_molecules(molecule_size)
+    mol2, types2 = frame2.unwrap(molecule_size).get_molecules(molecule_size)
+    
+    d = []
+    for i in range(0, n_each*2):
+        distances1 = scipy.spatial.distance.pdist(frame1.extensive(mol1[i]), metric='euclidean')
+        distances2 = scipy.spatial.distance.pdist(frame2.extensive(mol2[i]), metric='euclidean')
+        d.append(np.max(distances1 - distances2))
+            
+    # max pairwise distance difference comparing the same molecule to itself
+    return np.max(d)
+
+def compare_distance_variations(simulation):
+    plt.plot(np.arange(len(simulation.frames)),
+             [within_frame_variance(simulation.frames[i], molecule_size=44, n_each=100) for i in range(len(simulation.frames))],
+            label='Within Frame')
+
+    plt.plot(np.arange(len(simulation.frames)),
+             [between_frame_variance(simulation.frames[0], simulation.frames[i], molecule_size=44, n_each=100) 
+              for i in range(len(simulation.frames))],
+            label='Between Frames')
+    plt.legend(loc='best')

@@ -2,7 +2,8 @@
 
 # This is a very basic installation of LAMMPS using OpenMPI and GNU compilers - see https://docs.lammps.org/Install.html for detailed instructions
 
-module load openmpi4;
+module load openmpi/4.0.5;
+module load cmake/3.20.0;
 git clone -b stable https://github.com/lammps/lammps.git lammps;
 cd lammps;
 mkdir build; cd build;
