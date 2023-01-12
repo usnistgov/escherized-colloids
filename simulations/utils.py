@@ -919,12 +919,6 @@ def between_frame_distance_variance(frame1, frame2, molecule_size, n_each=100):
 
 def compare_distance_variations(simulation, molecule_size, n_each):
 	plt.figure()
-    plt.plot(np.arange(len(simulation.frames)),
-             [within_frame_distance_variance(simulation.frames[i], molecule_size=molecule_size, n_each=n_each) for i in range(len(simulation.frames))],
-            label='Within Frame')
-
-    plt.plot(np.arange(len(simulation.frames)),
-             [between_frame_distance_variance(simulation.frames[0], simulation.frames[i], molecule_size=molecule_size, n_each=n_each) 
-              for i in range(len(simulation.frames))],
-            label='Between Frames')
-    plt.legend(loc='best')
+	plt.plot(np.arange(len(simulation.frames)), [within_frame_distance_variance(simulation.frames[i], molecule_size=molecule_size, n_each=n_each) for i in range(len(simulation.frames))], label='Within Frame')
+	plt.plot(np.arange(len(simulation.frames)), [between_frame_distance_variance(simulation.frames[0], simulation.frames[i], molecule_size=molecule_size, n_each=n_each) for i in range(len(simulation.frames))], label='Between Frames')
+	plt.legend(loc='best')
