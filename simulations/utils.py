@@ -763,6 +763,29 @@ class Frame:
         self.set_coords(coords)
         self.set_types(types)
         self.set_box(box)
+		
+    def xyz(self, molecule_size, filename):
+        """
+        Export XYZ file with types based on chirality.
+        
+        The types are 0 or 1 based on having the same chirality as the first
+        molecule in the frame.
+        """
+        ext_coords = self.extensive(self._coords)
+
+        unwrapped_frame = self.unwrap(molecule_size)
+        mol_, types_ = unwrapped_frame.get_molecules(molecule_size)
+        f = open(filename, "w")
+        f.write(f'{len(ext_coords)}\n')
+
+        ctr = 0
+        for i in range(len(mol_)):
+            t = Analysis.identify_chirality(mol_[0], mol_[i])
+            for j in range(molecule_size):
+                f.write(f'\n{int(t)}\t{ext_coords[ctr,0]}\t{ext_coords[ctr,1]}\t0')
+                ctr += 1
+				
+        f.close()
         
     def extensive(self, coords):
         coords_ = copy.deepcopy(coords)
