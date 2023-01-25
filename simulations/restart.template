@@ -1,0 +1,62 @@
+# Continue (restart) an NPT simulation from the production phase 
+# Author: Nathan A. Mahynski
+# 01/25/2023
+
+variable	rec_freq equal __REC_FREQ__
+variable	res_freq equal __RES_FREQ__
+variable	Tfinal equal __TFINAL__
+variable	Tdamp equal __TDAMP__
+variable	Pfinal equal __PFINAL__
+variable	Pdamp equal __PDAMP__
+variable	dt equal __TIMESTEP__
+variable	comm_cut equal __PSEUDODIAMETER__
+variable	n_prod_loops equal __N_PROD_LOOPS__
+variable        steps_per equal __STEPS_PER_LOOP__
+
+# Settings
+
+processors	* * 1 grid numa
+boundary	p p p
+dimension	2
+
+# Setup - read from restart 
+
+read_restart restart_2.lammps
+
+dump		dump all custom ${rec_freq} r_log.dump id type xs ys zs vx vy vz
+dump_modify	dump pbc yes sort id flush yes
+log		r_log.thermo
+thermo		${rec_freq}
+thermo_style	custom step atoms temp press pe ke epair etotal vol
+thermo_modify	flush yes line one norm yes
+restart		${res_freq} r_restart_1.lammps r_restart_2.lammps
+
+__PAIR_COEFF__
+
+__PAIR_WRITE__
+
+# Confine to 2D
+
+fix		momentum all momentum ${steps_per} linear 1 1 1 angular rescale
+timestep	${dt}
+
+neighbor	2.0 bin # Extra buffer to help avoid dangerous builds
+neigh_modify	exclude molecule/intra all
+neigh_modify	delay 1 every 1 check yes
+comm_modify	mode single cutoff ${comm_cut} group all
+
+########################################
+# Production phase - run at fixed T, P #
+########################################
+
+variable a loop ${n_prod_loops}
+label pr_loop
+fix             integrator_prod all rigid/npt/small molecule temp ${Tfinal} ${Tfinal} ${Tdamp} iso ${Pfinal} ${Pfinal} ${Pdamp} pchain 5
+fix             dimensionality all enforce2d
+set atom * z 0
+set atom * vz 0
+run             ${steps_per}
+unfix		integrator_prod
+unfix		dimensionality
+next a
+jump SELF pr_loop
