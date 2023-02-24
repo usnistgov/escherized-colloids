@@ -358,7 +358,7 @@ const int compatibility_check(Motif& m, const string prefix, const int induced) 
   /**
    * Check compatibility between the tile and motif.
    * If they are compatible, returns the number after the symbol (e.g., 6 for c6).
-   * A motif with d(n) symmetry is compatible with S(P|M) = c(n) or S(P|M) = d(m) 
+   * A motif with d(n) symmetry is compatible with S(P|M) = c(m) or S(P|M) = d(m) 
    * when n%m == 0. A motif with c(n) symmetry is compatible with S(P|M) = c(m)
    * when n%m == 0. In both cases, n >= m.  Note that d_inf (circle) is compatible
    * with everything.

@@ -361,7 +361,7 @@ void Colloid::setParameters(const vector<double>& params, const double df_min) {
   // (3) assign the motif position and orientation, but (4) modify them as
   // needed to conform to the desired symmetry.  Note that this means the
   // params passed to setParameters() are NOT necessarily what the true
-  // parameters are; however, the input is uniquely mapped to some new value(s)
+  // parameters are; however, the input is always mapped to the same new value(s)
   // so this is reproducible.  Just be aware that the input from say an optimizer
   // and the resulting colloid might be different because of this change.
   // Since getParameters() collects information from the motif directly this
