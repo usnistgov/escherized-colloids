@@ -535,20 +535,20 @@ def watch_out_for(ih_type, dangerous, motif_point_symmetry):
     always strictly forbidden, but "dangerous" ones may work, though if the right
     set of conditions (tile shape, etc.) are met you might actually end up having (some) of 
     those extra symmetries in the motif become part of the pattern (or other effects which
-    result in additional global symmetries). In fact, this might only change the point
-    pattern without changing the symmetry group (see G&S) but we will disallow this
+    result in additional global symmetries). In fact, this might only change the henomeric 
+    type without changing the symmetry group (see G&S) but we will disallow this
     to be more conservative.
     
     Logic:
     1. Start with the S(P1) you are targeting and would usually get.
     2. That S(P1) should be treated as the MTPS of another pattern, S(P2), in which the 
-        induced group S(P2|M) is a subgroup (inclusive) of S(M). 
+        induced group S(P2|M) is a proper subgroup (inclusive) of S(M). 
     - This is because you cannot allow S(P2) to require induction of more symmetry than the 
         motif has, since this is impossible for the motif provide. 
-    3. We must also require that S(P2|M) > S(P1|M), since we are considering the case where 
-        the motif has extra "unused" symmetries not exploited by the first pattern. Our
-        algorithm would have considered that pattern "safe" not "dangerous" in that case.
-    4. We should also remove any cases where the minimal forbidden supergroup is a subgroup 
+    3. We also require that S(P2|M) > S(P1|M), since we are considering the case where 
+        the new pattern is exploiting more of the motif's "extra" symmetries than before.
+        Note, S(M) > S(P1|M) - otherwise this would not be a dangerous case.
+    4. We should also remove any cases where the minimal forbidden supergroup is a proper subgroup 
         of S(M) also since this would always forbid this motif.
         
     This will return rows in the table that tell you what symmetries you might end up with
