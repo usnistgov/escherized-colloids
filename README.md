@@ -2,6 +2,8 @@
 
 Use isohedral tiles to produce patchy colloids which self-assemble into two-dimensional films with a desired symmetry group and void fraction.
 
+[![DOI](https://zenodo.org/badge/430882925.svg)](https://zenodo.org/badge/latestdoi/430882925)
+
 Installation
 ============
 
