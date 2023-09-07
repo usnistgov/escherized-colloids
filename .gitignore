@@ -1,4 +1,5 @@
 *examples/*.xyz
+*examples/*.json
 *.o
 *.ipynb_checkpoints*
 *__pycache__*
