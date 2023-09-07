@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "Please cite this repository as indicated below."
+authors:
+  - family-names: Mahynski
+    given-names: Nathan
+    orcid: https://orcid.org/1234-5678-9101-1121
+title: "escherized-colloids"
+version: 0.0.1
+doi: 
+date-released: 2023-09-07
