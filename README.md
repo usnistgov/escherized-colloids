@@ -97,6 +97,14 @@ $ bash run.sh # You can change parameters in this file as needed.
 
 How To
 ======
+A [conda](https://anaconda.org/) environment yaml file is included to reproduce the development environment.  You can install this as follows:
+
+```code
+$ conda env create -f conda-env.yml
+$ conda activate escherc
+$ python -m ipykernel install --user --name=escherc
+```
+
 The design procedure is as follows:
 
 * Step 1: Build a new motif or decide on one from the `motif_libary/`.  The Jupyter notebook in the `motif_library/` directory (Create_Motifs.ipynb) illustrates how these are built and saved as JSON files.
