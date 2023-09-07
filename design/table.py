@@ -494,7 +494,7 @@ row_51 = [
 col_names = ['Pattern Type', 
              'Symmetry Group '+r'$S(\mathcal{P})$', 
              'Induced Group, '+r'$S(\mathcal{P}|M)$',
-             'Motif Transitive Proper Subgroups of '+r'$S(\mathcal{P})$',
+             'Motif-transitive Proper Subgroups of '+r'$S(\mathcal{P})$',
              'Minimal Forbidden Supergroups',
              'Isohedral Tiling Type IH'
             ]

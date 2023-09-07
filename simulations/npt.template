@@ -58,7 +58,7 @@ timestep	${dt}
 neighbor	2.0 bin # Extra buffer to help avoid dangerous builds
 neigh_modify	exclude molecule/intra all
 neigh_modify	delay 1 every 1 check yes
-comm_modify	mode single cutoff ${comm_cut} group all
+#comm_modify	mode single cutoff ${comm_cut} group all
 
 velocity	all create ${Tstart} 123456789 dist gaussian mom yes rot yes
 run		0
@@ -66,7 +66,7 @@ velocity	all scale ${Tstart}
 
 variable a loop ${n_init_loops}
 label init_loop
-fix             integrator_init all rigid/npt/small molecule temp ${Tstart} ${Tstart} ${Tdamp} iso ${Pstart} ${Pstart} ${Pdamp} pchain 5
+fix             integrator_init all rigid/npt molecule temp ${Tstart} ${Tstart} ${Tdamp} iso ${Pstart} ${Pstart} ${Pdamp} pchain 5
 fix		dimensionality all enforce2d
 set atom * z 0
 set atom * vz 0
@@ -88,7 +88,7 @@ variable Ta equal ${Tstart}
 variable dT equal (${Tstart}-${Tfinal})/${n_equil_loops}
 variable Tb equal ${Ta}-${dT}
 label eq_loop
-fix             integrator_equil all rigid/npt/small molecule temp ${Ta} ${Tb} ${Tdamp} iso ${Pa} ${Pb} ${Pdamp} pchain 5
+fix             integrator_equil all rigid/npt molecule temp ${Ta} ${Tb} ${Tdamp} iso ${Pa} ${Pb} ${Pdamp} pchain 5
 fix             dimensionality all enforce2d
 set atom * z 0
 set atom * vz 0
@@ -108,7 +108,7 @@ jump SELF eq_loop
 
 variable a loop ${n_prod_loops}
 label pr_loop
-fix             integrator_prod all rigid/npt/small molecule temp ${Tfinal} ${Tfinal} ${Tdamp} iso ${Pfinal} ${Pfinal} ${Pdamp} pchain 5
+fix             integrator_prod all rigid/npt molecule temp ${Tfinal} ${Tfinal} ${Tdamp} iso ${Pfinal} ${Pfinal} ${Pdamp} pchain 5
 fix             dimensionality all enforce2d
 set atom * z 0
 set atom * vz 0
