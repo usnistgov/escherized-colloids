@@ -114,3 +114,13 @@ The design procedure is as follows:
 * Step 3: Select a tile, then create a colloid by placing the motif inside of it (e.g., see `examples/initialize_colloid/`); you can do this in an "optimal" way by optimizing the fit (e.g., see `examples/pso_auto/`).
 * Final check: Create a unit cell (2x2 or greater is usually best) to inspect the design for its symmetry.  If you made a **safe** choice, this should be what you wanted. If you made a **dangerous** choice, you should double check (e.g., `examples/unit_cell/`).
 * Step 4: See `simulations/` directory for tools that use [LAMMPS](https://www.lammps.org/) to simulate the self-assembly of these colloidal particles.  In particular, the Preparing.ipynb notebook illustrates how to build the simulation scripts (automatically) and also analyze the results.
+
+# Citation
+Refer to the CITATION.cff file for information regarding the citation of this repository.  
+
+# Contact information
+* Nathan A. Mahynski, Material Measurement Laboratory, Chemical Sciences Division, Chemical Informatics Group. Contact: nathan.mahynski@nist.gov
+
+# License Information
+* See LICENSE.md for more information.
+* Any mention of commercial products is for information only; it does not imply recommendation or endorsement by [NIST](https://www.nist.gov/).
