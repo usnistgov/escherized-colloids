@@ -115,7 +115,7 @@ The design procedure is as follows:
 
 Citation
 ========
-Refer to the CITATION.cff file for information regarding the citation of this repository.  
+Refer to the [NIST MIDAS entry](https://datapub.nist.gov/od/id/mds2-3105) for information regarding the citation of this repository.  
 
 Contact information
 ===================
