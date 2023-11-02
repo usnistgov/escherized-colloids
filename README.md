@@ -1,6 +1,6 @@
 # Escherized Colloids
 
-Use isohedral tiles to produce patchy colloids which self-assemble into two-dimensional films with a desired symmetry group and void fraction.
+A set of computational tools for using isohedral tiles to produce patchy colloids that self-assemble into two-dimensional films with a desired symmetry group and void fraction.
 
 Installation
 ============
