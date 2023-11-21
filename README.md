@@ -9,7 +9,7 @@ Getting Started
 ---------------
 
 ~~~code
-$ git clone https://github.com/mahynski/escherized-colloids.git
+$ git clone https://github.com/usnistgov/escherized-colloids.git
 $ cd escherized_colloids
 $ # 1. Perform required installations, see below
 $ # 2. Perform optional installations, see below
