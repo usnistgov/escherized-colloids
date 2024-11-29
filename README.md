@@ -117,6 +117,8 @@ Citation
 ========
 Refer to the [NIST MIDAS entry](https://datapub.nist.gov/od/id/mds2-3105) for information regarding the citation of this repository.  
 
+The logo for this repository (`logo.png`) was generated using Google Gemini on Nov. 28, 2024 with the prompt "Create a logo as if MC Escher were drawing a picture of a colloidal crystal."
+
 Contact information
 ===================
 * Nathan A. Mahynski, Material Measurement Laboratory, Chemical Sciences Division, Chemical Informatics Group. Contact: nathan.mahynski@nist.gov
